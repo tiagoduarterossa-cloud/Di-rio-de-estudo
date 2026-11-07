@@ -117,6 +117,11 @@ details[open].panel summary::after{content:"▴"}
       <ul class="list" id="nextList"></ul>
       <p class="notas" id="amanha"></p>
     </div>
+    <div class="panel" id="estudoPanel">
+      <div class="top"><h2>Estudar para testes</h2><span class="count" id="estudoCount"></span></div>
+      <ul class="list" id="estudoList"></ul>
+      <p class="notas" id="estudoProx"></p>
+    </div>
     <div class="panel">
       <div class="top"><h2>Para rever hoje</h2><span class="count" id="dueCount"></span></div>
       <ul class="list" id="dueList"></ul>
@@ -356,7 +361,35 @@ function renderGrelha(){
   $("horGrid").innerHTML=`<div class="grelha">${html}</div>`;
 }
 
+// "Estudar para": 3 dias de estudo antes de cada teste (7 dias antes, 3 dias antes e na véspera).
+// Dias que já tinham passado quando o teste foi registado passam para esse dia. O feito fica em teste.estudo.
+const ANTES=[7,3,1];
+const isoLocal=d=>{d=new Date(d);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+function planoEstudo(t){
+  const desde=t.criado?isoLocal(t.criado):"0000-00-00", vistos=new Set(), plano=[];
+  ANTES.forEach(k=>{let dt=somaDias(t.data,-k);if(dt<desde)dt=desde;if(dt>=t.data||vistos.has(dt))return;vistos.add(dt);
+    plano.push({k:String(k),dt,feito:!!(t.estudo||{})[k]})});
+  return plano;
+}
+const verbo=t=>/trabalho|apresenta/i.test(t.tipo||"")?"Preparar":"Estudar para";
+
+function renderEstudo(){
+  const hoje=hojeISO(), todos=[];
+  testes.filter(t=>t.data>hoje).forEach(t=>planoEstudo(t).forEach(p=>{if(!p.feito)todos.push({t,...p})}));
+  todos.sort((a,b)=>a.dt.localeCompare(b.dt)||a.t.data.localeCompare(b.t.data));
+  const agora=todos.filter(x=>x.dt<=hoje), depois=todos.filter(x=>x.dt>hoje).slice(0,4);
+  $("estudoCount").textContent=agora.length?String(agora.length):"";
+  $("estudoList").innerHTML=agora.length?agora.map(({t,k,dt})=>{
+    const atraso=diasAte(dt);
+    return `<li class="due"><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")} ${quando(diasAte(t.data))}</span><span class="date">${atraso<0?`atrasado ${-atraso}d`:"hoje"}</span></div>
+      <span class="materia">${verbo(t)} ${esc(norm(t.tipo||"teste"))} de ${esc(t.disciplina)}</span>${t.materia?`<span class="notas">${esc(t.materia)}</span>`:""}
+      <div class="chips"><button class="btn small" data-estudei="${t.id}" data-k="${k}">Estudei</button></div></li>`}).join("")
+    :`<p class="empty">${testes.some(t=>t.data>hoje)?"Hoje não tens estudo marcado para testes.":"Sem testes marcados. Quando adicionares um, a app marca 3 dias de estudo antes dele."}</p>`;
+  $("estudoProx").textContent=depois.length?"A seguir: "+depois.map(({t,dt})=>`${t.disciplina} ${quando(diasAte(dt))}`).join(" · ")+".":"";
+}
+
 function renderAgenda(){
+  renderEstudo();
   const hoje=hojeISO();
   const fut=testes.filter(t=>t.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
   const pass=testes.filter(t=>t.data<hoje).sort((a,b)=>b.data.localeCompare(a.data));
@@ -365,7 +398,7 @@ function renderAgenda(){
     const pill=n<0?"":`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
     const b=!comBotao?"":`<button class="btn small ghost" data-edt="${t.id}">Editar</button>`+(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
     return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")}</span><span class="date">${fmt(t.data)}</span></div>
-      <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${b?`<div class="chips">${b}</div>`:""}</li>`};
+      <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${comBotao&&n>0?`<div class="chips">${planoEstudo(t).map(p=>`<span class="chip ${p.feito?"done":(p.dt<=hojeISO()?"late":"")}">estudo ${fmt(p.dt).slice(0,5)}${p.feito?" ✓":""}</span>`).join("")}</div>`:""}${b?`<div class="chips">${b}</div>`:""}</li>`};
   const prox=fut.filter(t=>diasAte(t.data)<=14);
   $("nextList").innerHTML=prox.length?prox.map(t=>item(t,false)).join(""):`<p class="empty">Sem testes nem trabalhos nas próximas duas semanas.${testes.length?"":" Adiciona-os no separador Testes."}</p>`;
   $("testList").innerHTML=(fut.length||pass.length)?fut.map(t=>item(t,true)).join("")+(pass.length?`<li><h3>Já passaram</h3></li>`+pass.map(t=>item(t,true)).join(""):"")
@@ -403,6 +436,12 @@ document.addEventListener("click",async e=>{
     if(t.dataset.falhei){const s=sessoes.find(x=>x.id===t.dataset.falhei);t.disabled=true;
       await db.doc("sessoes/"+s.id).update({base:hojeISO(),falhas:(s.falhas||0)+1,revisoes:{"1":false,"7":false,"30":false}});
       status("Sem stress: volta a aparecer amanhã. Relê a matéria hoje.")}
+    if(t.dataset.estudei){const x=testes.find(y=>y.id===t.dataset.estudei);t.disabled=true;
+      await db.doc("testes/"+x.id).update({estudo:{[t.dataset.k]:true}});
+      acabarEdicao("formSessao");$("sData").value=hojeISO();$("sDisc").value=x.disciplina;
+      const m=manuais.find(y=>norm(y.disciplina)===norm(x.disciplina));$("sManual").value=m?m.id:"";
+      $("sMateria").value="";$("formSessao").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("sMateria").focus({preventScroll:true}),400);
+      status(`Boa! Agora escreve em baixo o que estudaste de ${x.disciplina}, para entrar nas revisões.`);return}
     if(t.dataset.rev){t.disabled=true;await db.doc("sessoes/"+t.dataset.rev).update({revisoes:{[t.dataset.k]:true}});status("Revisão marcada.")}
   }catch(err){status("Não foi possível guardar. Tenta outra vez.",true);t.disabled=false}
 });

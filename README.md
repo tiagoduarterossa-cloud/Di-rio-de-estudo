@@ -11,6 +11,9 @@ Abre o `index.html` no browser (duplo clique). Não precisa de instalar nada nem
 
 Tudo (manuais, registos, testes e aulas) tem um botão "Editar".
 
+## Estudar para testes
+Cada teste ganha 3 dias de estudo: 7 dias antes, 3 dias antes e na véspera (se algum já tiver passado quando registas o teste, fica para esse dia). Aparecem no separador Hoje. Ao carregar em "Estudei", a app abre o formulário para registares o que estudaste, e isso entra nas revisões.
+
 ## Onde ficam os dados
 Há duas maneiras, e a app escolhe sozinha pelo `config.js`:
 
