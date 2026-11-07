@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diário de Estudo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}
+
+/* Caderno de estudo: coluna única, separadores no topo, marcador amarelo só no que está para rever */
+:root{
+  --bg:#F2F4F1; --surface:#FFFFFF; --ink:#18262A; --muted:#5D6C6E; --line:#D7DEDB;
+  --accent:#1F5F66; --mark:#F2DE5C; --mark-ink:#3A3200; --ok:#2E7D4F; --danger:#A2392F;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111A1C; --surface:#182427; --ink:#E4ECEA; --muted:#93A4A5; --line:#2A3A3D;
+  --accent:#6FB8BF; --mark:#C9B53A; --mark-ink:#1A1600; --ok:#6CC08F; --danger:#E0857B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111A1C; --surface:#182427; --ink:#E4ECEA; --muted:#93A4A5; --line:#2A3A3D;
+  --accent:#6FB8BF; --mark:#C9B53A; --mark-ink:#1A1600; --ok:#6CC08F; --danger:#E0857B; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);
+  margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:680px;margin:0 auto;display:grid;gap:20px}
+h1{font:700 1.9rem/1.1 var(--f-display);margin:0;text-wrap:balance}
+h2{font:600 1.15rem/1.2 var(--f-display);margin:0}
+.sub{color:var(--muted);margin:4px 0 0}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs button{white-space:nowrap;flex:none}
+.pill{font:600 .75rem var(--f-mono);border-radius:999px;padding:2px 8px;background:var(--line);color:var(--ink);white-space:nowrap}
+.pill.soon{background:var(--mark);color:var(--mark-ink)}
+h3{font:600 .8rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+.dias{display:grid;gap:16px}
+.dia{display:grid;gap:4px}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);font:600 .95rem var(--f-body);padding:10px 12px;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+section{display:grid;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
+input,select,textarea{font:16px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;box-sizing:border-box}
+textarea{min-height:70px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row{grid-template-columns:1fr}}
+.btn{background:var(--accent);color:var(--surface);border:0;border-radius:6px;padding:10px 14px;font:600 .95rem var(--f-body);cursor:pointer;justify-self:start}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+.btn.small{padding:5px 10px;font-size:.85rem}
+.btn.danger{color:var(--danger)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ul.list{list-style:none;margin:0;padding:0;display:grid}
+ul.list li{padding:12px 0;border-top:1px solid var(--line);display:grid;gap:4px;min-width:0}
+ul.list li:first-child{border-top:0}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.date{font:500 .8rem var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.tag{font:600 .72rem var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.materia{font-weight:600;overflow-wrap:anywhere}
+.notas{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere;white-space:pre-wrap}
+.due .materia{background:linear-gradient(transparent 55%,var(--mark) 55%);color:var(--ink);padding:0 2px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:500 .75rem var(--f-mono);border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.chip.done{color:var(--ok);border-color:var(--ok)}
+.chip.late{background:var(--mark);color:var(--mark-ink);border-color:var(--mark)}
+.empty{color:var(--muted);font-size:.95rem;margin:0}
+.status{font-size:.85rem;color:var(--muted);min-height:1.2em}
+.status.err{color:var(--danger)}
+.filter{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.filter label{flex:1;min-width:160px}
+.count{font:500 .85rem var(--f-mono);color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Diário de Estudo</h1>
+    <p class="sub">Os teus manuais, o que estudaste em cada dia e o que tens para rever.</p>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-hoje" aria-selected="true" data-tab="hoje">Hoje</button>
+    <button role="tab" id="t-testes" aria-selected="false" data-tab="testes">Testes</button>
+    <button role="tab" id="t-horario" aria-selected="false" data-tab="horario">Horário</button>
+    <button role="tab" id="t-manuais" aria-selected="false" data-tab="manuais">Manuais</button>
+    <button role="tab" id="t-hist" aria-selected="false" data-tab="hist">Histórico</button>
+  </nav>
+  <p class="status" id="status"></p>
+
+  <section id="hoje">
+    <div class="panel">
+      <h2>A seguir</h2>
+      <ul class="list" id="nextList"></ul>
+      <p class="notas" id="amanha"></p>
+    </div>
+    <div class="panel">
+      <div class="top"><h2>Para rever hoje</h2><span class="count" id="dueCount"></span></div>
+      <ul class="list" id="dueList"></ul>
+    </div>
+    <form class="panel" id="formSessao">
+      <h2>Registar o que estudei</h2>
+      <div class="row">
+        <label for="sData">Dia<input type="date" id="sData" required></label>
+        <label for="sDisc">Disciplina<input id="sDisc" list="discs" required placeholder="Ex.: Matemática"></label>
+        <datalist id="discs"></datalist>
+      </div>
+      <label for="sManual">Manual (opcional)<select id="sManual"></select></label>
+      <label for="sMateria">Matéria<input id="sMateria" required placeholder="Ex.: Cap. 4 – Equações do 2.º grau"></label>
+      <div class="row">
+        <label for="sOrigem">De onde vem<select id="sOrigem"><option>Estudo em casa</option><option>Sumário Inovar</option><option>Caderno</option></select></label>
+        <label for="sPag">Páginas (opcional)<input id="sPag" placeholder="Ex.: 88–102"></label>
+      </div>
+      <label for="sNotas">Notas, dúvidas, o que ficou por perceber<textarea id="sNotas"></textarea></label>
+      <button class="btn" type="submit">Guardar</button>
+    </form>
+  </section>
+
+  <section id="testes" hidden>
+    <form class="panel" id="formTeste">
+      <h2>Adicionar teste ou trabalho</h2>
+      <div class="row">
+        <label for="tData">Data<input type="date" id="tData" required></label>
+        <label for="tDisc">Disciplina<input id="tDisc" list="discs" required placeholder="Ex.: Ciências Naturais"></label>
+      </div>
+      <div class="row">
+        <label for="tTipo">Tipo<select id="tTipo"><option>Teste</option><option>Trabalho</option><option>Apresentação</option><option>Ficha</option></select></label>
+        <label for="tMateria">Matéria (opcional)<input id="tMateria" placeholder="Ex.: Cap. 2 e 3"></label>
+      </div>
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <div class="panel">
+      <h2>Calendário de avaliações</h2>
+      <ul class="list" id="testList"></ul>
+    </div>
+  </section>
+
+  <section id="horario" hidden>
+    <form class="panel" id="formAula">
+      <h2>Adicionar aula</h2>
+      <div class="row">
+        <label for="aDia">Dia<select id="aDia"><option value="1">Segunda</option><option value="2">Terça</option><option value="3">Quarta</option><option value="4">Quinta</option><option value="5">Sexta</option></select></label>
+        <label for="aDisc">Disciplina<input id="aDisc" list="discs" required placeholder="Ex.: Português"></label>
+      </div>
+      <div class="row">
+        <label for="aIni">Começa<input type="time" id="aIni" required value="08:15"></label>
+        <label for="aFim">Acaba<input type="time" id="aFim" required value="09:05"></label>
+      </div>
+      <label for="aSala">Sala ou professor (opcional)<input id="aSala"></label>
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <div class="panel"><h2>O meu horário</h2><div id="horList" class="dias"></div></div>
+  </section>
+
+  <section id="manuais" hidden>
+    <form class="panel" id="formManual">
+      <h2>Adicionar manual</h2>
+      <div class="row">
+        <label for="mTitulo">Título<input id="mTitulo" required placeholder="Ex.: Matemática 8 – Novo Espaço"></label>
+        <label for="mDisc">Disciplina<input id="mDisc" required placeholder="Ex.: Matemática"></label>
+      </div>
+      <label for="mNotas">Notas (editora, edição, capítulos do período…)<input id="mNotas"></label>
+      <button class="btn" type="submit">Adicionar</button>
+    </form>
+    <div class="panel">
+      <h2>Os meus manuais</h2>
+      <ul class="list" id="manList"></ul>
+    </div>
+  <div class="panel">
+      <h2>Cópia de segurança</h2>
+      <p class="notas">Os dados ficam guardados só neste browser. Descarrega uma cópia de vez em quando, e usa-a para passar tudo para outro computador.</p>
+      <div class="chips"><button class="btn ghost" type="button" id="btnExport">Descarregar cópia</button>
+      <label class="btn ghost" for="fImport" style="display:inline-block">Importar cópia<input type="file" id="fImport" accept="application/json" hidden></label></div>
+    </div>
+  </section>
+
+  <section id="hist" hidden>
+    <div class="panel">
+      <div class="filter">
+        <label for="hFiltro">Filtrar por disciplina<select id="hFiltro"></select></label>
+        <span class="count" id="histCount"></span>
+      </div>
+      <ul class="list" id="histList"></ul>
+    </div>
+  </section>
+</div>
+
+<script src="db.js"></script>
+<script>
+const INTERVALOS=[1,7,30];
+let db=null, manuais=[], sessoes=[], testes=[], horario=[], podeEscrever=true, confirmar=null;
+const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const $=id=>document.getElementById(id);
+const hojeISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const somaDias=(iso,n)=>{const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const fmt=iso=>{const [a,m,d]=iso.split("-");return `${d}/${m}/${a}`};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const discOf=s=>s.disciplina||(manuais.find(x=>x.id===s.manualId)||{}).disciplina||"";
+const rotulo=s=>{const m=manuais.find(x=>x.id===s.manualId);return m?`${m.disciplina} · ${m.titulo}`:(s.disciplina||"Sem disciplina")};
+const norm=s=>String(s||"").trim().toLowerCase();
+const diasAte=iso=>Math.round((new Date(iso+"T12:00:00")-new Date(hojeISO()+"T12:00:00"))/864e5);
+const quando=n=>n===0?"hoje":n===1?"amanhã":`daqui a ${n} dias`;
+const proxTeste=disc=>testes.filter(t=>norm(t.disciplina)===norm(disc)&&t.data>=hojeISO()).sort((a,b)=>a.data.localeCompare(b.data))[0];
+function status(t,err){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err)}
+
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  ["hoje","testes","horario","manuais","hist"].forEach(id=>$(id).hidden=id!==b.dataset.tab);
+}));
+$("sData").value=hojeISO();
+
+function render(){
+  // selects
+  const opts=manuais.map(m=>`<option value="${m.id}">${esc(m.disciplina)} · ${esc(m.titulo)}</option>`).join("");
+  const sel=$("sManual").value; $("sManual").innerHTML=`<option value="">Sem manual</option>`+opts; $("sManual").value=sel;
+  const discs=[...new Set([...manuais.map(m=>m.disciplina),...sessoes.map(discOf),...testes.map(t=>t.disciplina),...horario.map(a=>a.disciplina)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt"));
+  $("discs").innerHTML=discs.map(d=>`<option value="${esc(d)}">`).join("");
+  const hf=$("hFiltro").value; $("hFiltro").innerHTML=`<option value="">Todas</option>`+discs.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join(""); $("hFiltro").value=hf;
+
+  // manuais
+  $("manList").innerHTML=manuais.length?manuais.map(m=>{
+    const n=sessoes.filter(s=>s.manualId===m.id).length;
+    const del=confirmar===m.id?`<button class="btn small ghost danger" data-delm="${m.id}">Confirmar remoção</button>`:`<button class="btn small ghost" data-askm="${m.id}">Remover</button>`;
+    return `<li><div class="top"><span class="tag">${esc(m.disciplina)}</span><span class="date">${n} ${n===1?"sessão":"sessões"}</span></div>
+      <span class="materia">${esc(m.titulo)}</span>${m.notas?`<span class="notas">${esc(m.notas)}</span>`:""}<div>${del}</div></li>`}).join("")
+    :`<p class="empty">Ainda não há manuais. Adiciona o primeiro acima, um por disciplina.</p>`;
+
+  // para rever
+  const hoje=hojeISO(), due=[];
+  sessoes.forEach(s=>INTERVALOS.forEach(k=>{const r=s.revisoes||{};const dt=somaDias(s.data,k);if(!r[k]&&dt<=hoje)due.push({s,k,dt})}));
+  due.forEach(x=>{x.t=proxTeste(discOf(x.s));x.td=x.t?diasAte(x.t.data):999});
+  due.sort((a,b)=>a.td-b.td||a.dt.localeCompare(b.dt));
+  $("dueCount").textContent=due.length?`${due.length}`:"";
+  $("dueList").innerHTML=due.length?due.map(({s,k,dt,t,td})=>`<li class="due"><div class="top"><span class="tag">${esc(rotulo(s))}</span><span class="date">estudado ${fmt(s.data)} · revisão ${k}d${dt<hoje?" · atrasada":""}${t&&td<=14?` · ${esc(norm(t.tipo||"teste"))} ${quando(td)}`:""}</span></div>
+      <span><span class="materia">${esc(s.materia)}</span></span>
+      <div><button class="btn small" data-rev="${s.id}" data-k="${k}">Revi sem olhar</button></div></li>`).join("")
+    :`<p class="empty">Nada para rever hoje. As revisões aparecem aqui 1, 7 e 30 dias depois de cada matéria que registares.</p>`;
+
+  // histórico
+  const lista=sessoes.filter(s=>!hf||discOf(s)===hf).sort((a,b)=>b.data.localeCompare(a.data)||String(b.criado).localeCompare(String(a.criado)));
+  $("histCount").textContent=`${lista.length} ${lista.length===1?"registo":"registos"}`;
+  $("histList").innerHTML=lista.length?lista.map(s=>{
+    const r=s.revisoes||{};
+    const chips=INTERVALOS.map(k=>{const dt=somaDias(s.data,k);const c=r[k]?"done":(dt<=hoje?"late":"");return `<span class="chip ${c}">${k}d ${r[k]?"✓":fmt(dt).slice(0,5)}</span>`}).join("");
+    const del=confirmar===s.id?`<button class="btn small ghost danger" data-dels="${s.id}">Confirmar</button>`:`<button class="btn small ghost" data-asks="${s.id}">Apagar</button>`;
+    return `<li><div class="top"><span class="tag">${esc(rotulo(s))}${s.origem?` · ${esc(s.origem)}`:""}</span><span class="date">${fmt(s.data)}</span></div>
+      <span class="materia">${esc(s.materia)}${s.paginas?` <span class="date">p. ${esc(s.paginas)}</span>`:""}</span>
+      ${s.notas?`<span class="notas">${esc(s.notas)}</span>`:""}<div class="top"><div class="chips">${chips}</div>${del}</div></li>`}).join("")
+    :`<p class="empty">Sem registos ainda. Cada matéria que guardares no separador Hoje aparece aqui, por data.</p>`;
+
+  renderAgenda();
+  document.querySelectorAll("form button[type=submit]").forEach(b=>b.disabled=!db||!podeEscrever);
+}
+
+function renderAgenda(){
+  const hoje=hojeISO();
+  const fut=testes.filter(t=>t.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
+  const pass=testes.filter(t=>t.data<hoje).sort((a,b)=>b.data.localeCompare(a.data));
+  const item=(t,comBotao)=>{
+    const n=diasAte(t.data);
+    const pill=n<0?"":`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
+    const b=!comBotao?"":(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
+    return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")}</span><span class="date">${fmt(t.data)}</span></div>
+      <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${b?`<div>${b}</div>`:""}</li>`};
+  const prox=fut.filter(t=>diasAte(t.data)<=14);
+  $("nextList").innerHTML=prox.length?prox.map(t=>item(t,false)).join(""):`<p class="empty">Sem testes nem trabalhos nas próximas duas semanas.${testes.length?"":" Adiciona-os no separador Testes."}</p>`;
+  $("testList").innerHTML=(fut.length||pass.length)?fut.map(t=>item(t,true)).join("")+(pass.length?`<li><h3>Já passaram</h3></li>`+pass.map(t=>item(t,true)).join(""):"")
+    :`<p class="empty">Ainda não há avaliações. Adiciona a primeira acima com a data e a disciplina.</p>`;
+
+  const porDia=[1,2,3,4,5].map(d=>({d,aulas:horario.filter(a=>+a.dia===d).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)))}));
+  $("horList").innerHTML=horario.length?porDia.filter(x=>x.aulas.length).map(x=>`<div class="dia"><h3>${DIAS[x.d]}</h3><ul class="list">${x.aulas.map(a=>{
+      const b=confirmar===a.id?`<button class="btn small ghost danger" data-delh="${a.id}">Confirmar</button>`:`<button class="btn small ghost" data-askh="${a.id}">Apagar</button>`;
+      return `<li><div class="top"><span><span class="date">${esc(a.inicio)}–${esc(a.fim)}</span> <span class="materia">${esc(a.disciplina)}</span>${a.sala?` <span class="notas">${esc(a.sala)}</span>`:""}</span>${b}</div></li>`}).join("")}</ul></div>`).join("")
+    :`<p class="empty">Ainda não há aulas. Adiciona-as acima, dia a dia. A hora de início passa sozinha para o fim da aula anterior.</p>`;
+
+  const am=new Date(hoje+"T12:00:00");am.setDate(am.getDate()+1);const wd=am.getDay();
+  const aulasAm=horario.filter(a=>+a.dia===wd).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
+  $("amanha").textContent=aulasAm.length?`Amanhã (${DIAS[wd]}): ${[...new Set(aulasAm.map(a=>a.disciplina))].join(", ")}.`:(horario.length?`Amanhã (${DIAS[wd]}) não tens aulas.`:"");
+}
+
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button");if(!t||!db)return;
+  try{
+    if(t.dataset.askm||t.dataset.asks){confirmar=t.dataset.askm||t.dataset.asks;render();return}
+    if(t.dataset.askt||t.dataset.askh){confirmar=t.dataset.askt||t.dataset.askh;render();return}
+    if(t.dataset.delt){await db.doc("testes/"+t.dataset.delt).delete();confirmar=null;status("Avaliação apagada.")}
+    if(t.dataset.delh){await db.doc("horario/"+t.dataset.delh).delete();confirmar=null;status("Aula apagada.")}
+    if(t.dataset.delm){await db.doc("manuais/"+t.dataset.delm).delete();confirmar=null;status("Manual removido. Os registos dele ficam no histórico.")}
+    if(t.dataset.dels){await db.doc("sessoes/"+t.dataset.dels).delete();confirmar=null;status("Registo apagado.")}
+    if(t.dataset.rev){t.disabled=true;await db.doc("sessoes/"+t.dataset.rev).update({revisoes:{[t.dataset.k]:true}});status("Revisão marcada.")}
+  }catch(err){status("Não foi possível guardar. Tenta outra vez.",true);t.disabled=false}
+});
+
+$("formManual").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db)return;
+  const d={titulo:$("mTitulo").value.trim(),disciplina:$("mDisc").value.trim(),notas:$("mNotas").value.trim(),criado:new Date().toISOString()};
+  if(!d.titulo||!d.disciplina)return;
+  try{await db.collection("manuais").add(d);e.target.reset();status("Manual adicionado.")}
+  catch(err){status(err&&err.code==="quota_exceeded"?"A base de dados está cheia.":"Não foi possível guardar o manual ("+((err&&err.code)||"erro")+").",true)}
+});
+$("formSessao").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db)return;
+  const d={data:$("sData").value||hojeISO(),disciplina:$("sDisc").value.trim(),manualId:$("sManual").value,materia:$("sMateria").value.trim(),paginas:$("sPag").value.trim(),origem:$("sOrigem").value,notas:$("sNotas").value.trim(),revisoes:{"1":false,"7":false,"30":false},criado:new Date().toISOString()};
+  if(!d.materia||!d.disciplina)return;
+  try{await db.collection("sessoes").add(d);["sMateria","sPag","sNotas"].forEach(id=>$(id).value="");status("Guardado. Primeira revisão amanhã.")}
+  catch(err){status("Não foi possível guardar o registo ("+((err&&err.code)||"erro")+").",true)}
+});
+$("hFiltro").addEventListener("change",render);
+$("formTeste").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db)return;
+  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim(),criado:new Date().toISOString()};
+  if(!d.data||!d.disciplina)return;
+  try{await db.collection("testes").add(d);["tDisc","tMateria"].forEach(id=>$(id).value="");status("Avaliação adicionada.")}
+  catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
+});
+$("formAula").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db)return;
+  const d={dia:+$("aDia").value,disciplina:$("aDisc").value.trim(),inicio:$("aIni").value,fim:$("aFim").value,sala:$("aSala").value.trim()};
+  if(!d.disciplina||!d.inicio||!d.fim)return;
+  try{await db.collection("horario").add(d);$("aDisc").value="";$("aSala").value="";$("aIni").value=d.fim;$("aDisc").focus();status(`Aula de ${d.disciplina} adicionada a ${DIAS[d.dia].toLowerCase()}.`)}
+  catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
+});
+$("sManual").addEventListener("change",()=>{const m=manuais.find(x=>x.id===$("sManual").value);if(m)$("sDisc").value=m.disciplina});
+
+render();
+(()=>{
+  db=LocalDB;
+  const ord=(a,b)=>(a.disciplina+a.titulo).localeCompare(b.disciplina+b.titulo,"pt");
+  db.collection("manuais").onSnapshot(s=>{manuais=s.docs.map(d=>({id:d.id,...d.data()})).sort(ord);render()});
+  db.collection("testes").onSnapshot(s=>{testes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  status("");
+})();
+
+// Cópia de segurança: os dados vivem só neste browser
+$("btnExport").addEventListener("click",()=>{
+  const blob=new Blob([db.exportJSON()],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`diario-estudo-${hojeISO()}.json`;a.click();URL.revokeObjectURL(a.href);
+  status("Cópia de segurança descarregada.");
+});
+$("fImport").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{db.importJSON(await f.text());status("Dados importados.")}catch(err){status("Esse ficheiro não é uma cópia do Diário de Estudo.",true)}
+  e.target.value="";
+});
+</script>
+</body>
+</html>
