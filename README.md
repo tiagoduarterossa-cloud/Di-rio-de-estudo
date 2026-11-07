@@ -52,7 +52,7 @@ A chave "anon" pode estar no GitHub sem problema: a regra da tabela só deixa ca
 - `index.html`: a página toda (aspeto e lógica).
 - `db.js`: guarda e lê os dados, no browser ou no Supabase.
 - `config.js`: os dados de ligação ao Supabase (vazio = só no browser).
-- `logo.svg`: o logo. Os `.png` são o mesmo logo em tamanhos para o ícone do telemóvel; se mudares o logo, gera-os outra vez.
+- `logo.svg`: o logo. Os `.png` são o mesmo logo em tamanhos para o ícone do telemóvel; se mudares o logo, gera-os outra vez e sobe o `?v=` no `index.html` e no `manifest.json`, para o browser não mostrar o antigo.
 
 ## Ideias para continuar
 1. Resumos com quiz e teste.
