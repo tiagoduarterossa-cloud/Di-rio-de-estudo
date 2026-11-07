@@ -14,6 +14,27 @@ const BDComum = {
   },
 };
 
+// Fotos no browser: ficam no IndexedDB (aguenta muito mais do que o localStorage, que só tem ~5 MB).
+const FotosLocais = (() => {
+  let abrir;
+  const idb = () => abrir ||= new Promise((ok, erro) => {
+    const r = indexedDB.open("diario-estudo-fotos", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("fotos");
+    r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error);
+  });
+  const pedido = (modo, fn) => idb().then(db => new Promise((ok, erro) => {
+    const tx = db.transaction("fotos", modo), r = fn(tx.objectStore("fotos"));
+    tx.oncomplete = () => ok(r && r.result); tx.onerror = () => erro(tx.error);
+  }));
+  const urls = {};
+  return {
+    async guardar(blob) { const id = BDComum.newId(); await pedido("readwrite", st => st.put(blob, id)); return id; },
+    async blob(id) { return pedido("readonly", st => st.get(id)); },
+    async url(id) { if (urls[id]) return urls[id]; const b = await this.blob(id); if (!b) return null; return urls[id] = URL.createObjectURL(b); },
+    async apagar(id) { await pedido("readwrite", st => st.delete(id)); },
+  };
+})();
+
 const LocalDB = (() => {
   const KEY = "diario-estudo-v1";
   const listeners = {};
@@ -26,7 +47,7 @@ const LocalDB = (() => {
   window.addEventListener("storage", e => { if (e.key === KEY) { data = load(); Object.keys(listeners).forEach(notify); } });
 
   return {
-    tipo: "local",
+    tipo: "local", fotos: FotosLocais,
     collection(col) {
       return {
         async add(body) { const id = BDComum.newId(); (data[col] ||= {})[id] = body; persist(); notify(col); return { id }; },
@@ -66,8 +87,16 @@ function criarNuvemDB(sb, user) {
 
   const gravar = (col, id, dados) => sb.from("registos").upsert({ id, colecao: col, dados, user_id: user.id }).then(r => falha(r.error));
 
+  // Fotos na nuvem: bucket privado "fotos", uma pasta por pessoa (ver README)
+  const caminho = id => `${user.id}/${id}.jpg`, urls = {};
+  const fotos = {
+    async guardar(blob, idDado) { const id = idDado || BDComum.newId(); const { error } = await sb.storage.from("fotos").upload(caminho(id), blob, { contentType: "image/jpeg", upsert: true }); falha(error); return id; },
+    async url(id) { if (urls[id]) return urls[id]; const { data: d, error } = await sb.storage.from("fotos").createSignedUrl(caminho(id), 60 * 60 * 24); if (error) return null; return urls[id] = d.signedUrl; },
+    async apagar(id) { await sb.storage.from("fotos").remove([caminho(id)]); },
+  };
+
   return {
-    tipo: "nuvem", email: user.email, recarregar,
+    tipo: "nuvem", email: user.email, recarregar, fotos,
     async sair() { await sb.auth.signOut(); location.reload(); },
     collection(col) {
       return {
@@ -123,6 +152,11 @@ async function abrirBD({ pedirLogin }) {
   const nuvem = criarNuvemDB(sb, session.user);
   await nuvem.recarregar();
   // Primeira vez na nuvem: leva o que estava guardado neste browser
-  if (!nuvem.temDados() && LocalDB.temDados()) await nuvem.importJSON(LocalDB.exportJSON());
+  if (!nuvem.temDados() && LocalDB.temDados()) {
+    await nuvem.importJSON(LocalDB.exportJSON());
+    const local = JSON.parse(LocalDB.exportJSON()), ids = [];
+    for (const col in local) for (const id in local[col] || {}) ids.push(...(local[col][id].fotos || []));
+    for (const id of ids) { const b = await FotosLocais.blob(id).catch(() => null); if (b) await nuvem.fotos.guardar(b, id); }
+  }
   return nuvem;
 }

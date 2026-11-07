@@ -85,10 +85,23 @@ ul.list li:first-child{border-top:0}
 details.panel summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
 details.panel summary::after{content:"▾";color:var(--muted)}
 details[open].panel summary::after{content:"▴"}
+/* Fotos */
+.fotos{display:flex;gap:8px;flex-wrap:wrap}
+.fotos:empty{display:none}
+.fotos img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:zoom-in}
+.ver{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
+.ver img{max-width:100%;max-height:100%;border-radius:6px}
+/* Faltas */
+.sub-form{display:grid;gap:12px;margin-top:12px}
+.checks{display:flex;gap:8px;flex-wrap:wrap}
+.checks label{display:flex;gap:6px;align-items:center;font:600 .9rem var(--f-body);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
+.checks input{width:auto;margin:0}
+.checks p{margin:0}
 .count{font:500 .85rem var(--f-mono);color:var(--muted)}
 </style>
 </head>
 <body>
+<div class="ver" id="verFoto" hidden><img alt="Foto do caderno"></div>
 <div class="wrap">
   <header>
     <div class="marca"><img src="logo.svg?v=2" alt="" width="44" height="44"><h1>Diário de Estudo</h1></div>
@@ -122,6 +135,19 @@ details[open].panel summary::after{content:"▴"}
       <ul class="list" id="estudoList"></ul>
       <p class="notas" id="estudoProx"></p>
     </div>
+    <div class="panel" id="faltasPanel">
+      <div class="top"><h2>Para compensar</h2><span class="count" id="faltasCount"></span></div>
+      <ul class="list" id="faltasList"></ul>
+      <details id="faltaDet">
+        <summary class="btn ghost small">Faltei a aulas</summary>
+        <form id="formFalta" class="sub-form">
+          <label for="fData">Dia em que faltei<input type="date" id="fData" required></label>
+          <div id="fAulas" class="checks"></div>
+          <label for="fOutra">Outra disciplina (opcional)<input id="fOutra" list="discs" placeholder="Se não estiver na lista"></label>
+          <button class="btn" type="submit">Registar falta</button>
+        </form>
+      </details>
+    </div>
     <div class="panel">
       <div class="top"><h2>Para rever hoje</h2><span class="count" id="dueCount"></span></div>
       <ul class="list" id="dueList"></ul>
@@ -140,6 +166,8 @@ details[open].panel summary::after{content:"▴"}
         <label for="sPag">Páginas (opcional)<input id="sPag" placeholder="Ex.: 88–102"></label>
       </div>
       <label for="sNotas">Notas, dúvidas, o que ficou por perceber<textarea id="sNotas"></textarea></label>
+      <label for="sFotos">Fotos do caderno ou do manual (opcional)<input type="file" id="sFotos" accept="image/*" multiple></label>
+      <div class="fotos" id="sFotosPrev"></div>
       <div class="chips"><button class="btn" type="submit">Guardar</button><button class="btn ghost" type="button" data-cancel="formSessao" hidden>Cancelar</button></div>
     </form>
   </section>
@@ -234,6 +262,7 @@ details[open].panel summary::after{content:"▴"}
 <script src="db.js"></script>
 <script>
 const INTERVALOS=[1,7,30];
+let faltas=[];
 let db=null, manuais=[], sessoes=[], testes=[], horario=[], podeEscrever=true, confirmar=null;
 const editando={}; // formulário -> id do registo que está a ser editado
 const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
@@ -249,6 +278,22 @@ const diasAte=iso=>Math.round((new Date(iso+"T12:00:00")-new Date(hojeISO()+"T12
 const quando=n=>n===0?"hoje":n===1?"amanhã":`daqui a ${n} dias`;
 const baseRev=s=>s.base||s.data; // depois de "Não me lembrei" as revisões contam a partir desse dia
 const proxTeste=disc=>testes.filter(t=>norm(t.disciplina)===norm(disc)&&t.data>=hojeISO()).sort((a,b)=>a.data.localeCompare(b.data))[0];
+// Reduz a foto (no máximo 1600 px, JPEG) para não encher o armazenamento
+async function comprimir(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((ok,erro)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=erro;i.src=url});
+    const f=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*f);c.height=Math.round(img.naturalHeight*f);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return await new Promise(ok=>c.toBlob(ok,"image/jpeg",.75));
+  }finally{URL.revokeObjectURL(url)}
+}
+const fotosHTML=ids=>ids&&ids.length?`<div class="fotos">${ids.map(id=>`<img data-foto="${esc(id)}" alt="Foto do caderno" loading="lazy">`).join("")}</div>`:"";
+function carregarFotos(){
+  if(!db)return;
+  document.querySelectorAll("img[data-foto]:not([src])").forEach(img=>db.fotos.url(img.dataset.foto).then(u=>{if(u)img.src=u}).catch(()=>{}));
+}
 function status(t,err){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err)}
 
 function abrirTab(nome){
@@ -304,7 +349,7 @@ function render(){
   due.sort((a,b)=>a.td-b.td||a.dt.localeCompare(b.dt));
   $("dueCount").textContent=due.length?`${due.length}`:"";
   $("dueList").innerHTML=due.length?due.map(({s,k,dt,t,td})=>`<li class="due"><div class="top"><span class="tag">${esc(rotulo(s))}</span><span class="date">estudado ${fmt(s.data)} · revisão ${k}d${dt<hoje?" · atrasada":""}${t&&td<=14?` · ${esc(norm(t.tipo||"teste"))} ${quando(td)}`:""}</span></div>
-      <span><span class="materia">${esc(s.materia)}</span></span>
+      <span><span class="materia">${esc(s.materia)}</span></span>${fotosHTML(s.fotos)}
       <div class="chips"><button class="btn small" data-rev="${s.id}" data-k="${k}">Revi sem olhar</button><button class="btn small ghost" data-falhei="${s.id}">Não me lembrei</button></div></li>`).join("")
     :`<p class="empty">Nada para rever hoje. As revisões aparecem aqui 1, 7 e 30 dias depois de cada matéria que registares.</p>`;
 
@@ -317,10 +362,12 @@ function render(){
     const del=confirmar===s.id?`<button class="btn small ghost danger" data-dels="${s.id}">Confirmar</button>`:`<button class="btn small ghost" data-asks="${s.id}">Apagar</button>`;
     return `<li><div class="top"><span class="tag">${esc(rotulo(s))}${s.origem?` · ${esc(s.origem)}`:""}</span><span class="date">${fmt(s.data)}</span></div>
       <span class="materia">${esc(s.materia)}${s.paginas?` <span class="date">p. ${esc(s.paginas)}</span>`:""}</span>
-      ${s.notas?`<span class="notas">${esc(s.notas)}</span>`:""}${s.falhas?`<span class="date">recomeçou ${fmt(s.base)} · ${s.falhas} ${s.falhas===1?"vez":"vezes"} sem me lembrar</span>`:""}<div class="top"><div class="chips">${chips}</div><div class="chips"><button class="btn small ghost" data-eds="${s.id}">Editar</button>${del}</div></div></li>`}).join("")
+      ${s.notas?`<span class="notas">${esc(s.notas)}</span>`:""}${fotosHTML(s.fotos)}${s.falhas?`<span class="date">recomeçou ${fmt(s.base)} · ${s.falhas} ${s.falhas===1?"vez":"vezes"} sem me lembrar</span>`:""}<div class="top"><div class="chips">${chips}</div><div class="chips"><button class="btn small ghost" data-eds="${s.id}">Editar</button>${del}</div></div></li>`}).join("")
     :`<p class="empty">Sem registos ainda. Cada matéria que guardares no separador Hoje aparece aqui, por data.</p>`;
 
   renderAgenda();
+  renderFaltas();
+  carregarFotos();
   document.querySelectorAll("form:not(#formLogin) button[type=submit]").forEach(b=>b.disabled=!db||!podeEscrever);
 }
 
@@ -388,6 +435,34 @@ function renderEstudo(){
   $("estudoProx").textContent=depois.length?"A seguir: "+depois.map(({t,dt})=>`${t.disciplina} ${quando(diasAte(dt))}`).join(" · ")+".":"";
 }
 
+// Faltas: cada aula a que faltaste fica "Para compensar" até teres a matéria e a estudares
+function renderFaltas(){
+  // primeiro as disciplinas com teste mais perto, depois as faltas mais antigas
+  const urg=f=>{const t=proxTeste(f.disciplina);return t?diasAte(t.data):999};
+  const pend=faltas.filter(f=>!f.compensada).sort((a,b)=>urg(a)-urg(b)||a.data.localeCompare(b.data)||String(a.inicio).localeCompare(String(b.inicio)));
+  $("faltasCount").textContent=pend.length?String(pend.length):"";
+  $("faltasList").innerHTML=pend.length?pend.map(f=>{
+    const t=proxTeste(f.disciplina),td=t?diasAte(t.data):999,dias=-diasAte(f.data);
+    const passo=f.temMateria
+      ?`<button class="btn small" data-compensei="${f.id}">Compensei</button>`
+      :`<button class="btn small" data-tenho="${f.id}">Já tenho a matéria</button>`;
+    const del=confirmar===f.id?`<button class="btn small ghost danger" data-delf="${f.id}">Confirmar</button>`:`<button class="btn small ghost" data-askf="${f.id}">Apagar</button>`;
+    return `<li${td<=7?' class="due"':""}><div class="top"><span class="tag">${esc(f.disciplina)}${f.inicio?` · ${esc(f.inicio)}`:""}</span><span class="date">faltei ${fmt(f.data)}${dias>0?` · há ${dias} ${dias===1?"dia":"dias"}`:""}</span></div>
+      <div class="top"><span class="materia">${f.temMateria?"Agora estuda essa matéria":"Arranja a matéria dessa aula"}</span>${t&&td<=14?`<span class="pill${td<=7?" soon":""}">${esc(norm(t.tipo||"teste"))} ${quando(td)}</span>`:""}</div>
+      <span class="notas">${f.temMateria?"Lê, faz um resumo ou exercícios. Depois carrega em Compensei e regista o que deste.":"Pede o caderno a um colega ou vê o sumário no Inovar. Tira fotos às páginas."}</span>
+      <div class="chips">${passo}${del}</div></li>`}).join("")
+    :`<p class="empty">Nada para compensar. Se faltares a uma aula, regista aqui em baixo.</p>`;
+}
+function renderAulasFalta(){
+  const d=$("fData").value;if(!d)return;
+  const wd=new Date(d+"T12:00:00").getDay();
+  const aulas=horario.filter(a=>+a.dia===wd).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
+  $("fAulas").innerHTML=aulas.length
+    ?aulas.map((a,i)=>`<label><input type="checkbox" value="${i}" checked> ${esc(a.inicio)} ${esc(a.disciplina)}</label>`).join("")
+    :`<p class="notas">Nesse dia não tens aulas no horário. Escreve a disciplina em baixo.</p>`;
+  $("fAulas").aulas=aulas;
+}
+
 function renderAgenda(){
   renderEstudo();
   const hoje=hojeISO();
@@ -419,6 +494,12 @@ function renderAgenda(){
   $("amanha").textContent=aulasAm.length?`Amanhã (${DIAS[wd]}): ${[...new Set(aulasAm.map(a=>a.disciplina))].join(", ")}.`:(horario.length?`Amanhã (${DIAS[wd]}) não tens aulas.`:"");
 }
 
+document.addEventListener("click",e=>{
+  const img=e.target.closest("img[data-foto]");
+  if(img&&img.src){const v=$("verFoto");v.querySelector("img").src=img.src;v.hidden=false}
+});
+$("verFoto").addEventListener("click",()=>$("verFoto").hidden=true);
+
 document.addEventListener("click",async e=>{
   const t=e.target.closest("button");if(!t||!db)return;
   try{
@@ -427,15 +508,25 @@ document.addEventListener("click",async e=>{
     if(t.dataset.delt){await db.doc("testes/"+t.dataset.delt).delete();confirmar=null;status("Avaliação apagada.")}
     if(t.dataset.delh){await db.doc("horario/"+t.dataset.delh).delete();confirmar=null;status("Aula apagada.")}
     if(t.dataset.delm){await db.doc("manuais/"+t.dataset.delm).delete();confirmar=null;status("Manual removido. Os registos dele ficam no histórico.")}
-    if(t.dataset.dels){await db.doc("sessoes/"+t.dataset.dels).delete();confirmar=null;status("Registo apagado.")}
-    if(t.dataset.cancel){acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
+    if(t.dataset.dels){const s=sessoes.find(x=>x.id===t.dataset.dels);for(const f of (s&&s.fotos)||[])await db.fotos.apagar(f).catch(()=>{});await db.doc("sessoes/"+t.dataset.dels).delete();confirmar=null;status("Registo apagado.")}
+    if(t.dataset.cancel){acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();$("sFotosPrev").innerHTML="";if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
     if(t.dataset.edm){const m=manuais.find(x=>x.id===t.dataset.edm);editar("formManual","manuais",m.id,{mTitulo:m.titulo,mDisc:m.disciplina,mNotas:m.notas});return}
-    if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
+    if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);$("sFotos").value="";$("sFotosPrev").innerHTML=fotosHTML(s.fotos).replace(/^<div class="fotos">|<\/div>$/g,"");carregarFotos();editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
     if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia});return}
     if(t.dataset.edh){const a=horario.find(y=>y.id===t.dataset.edh);editar("formAula","horario",a.id,{aDia:a.dia,aDisc:a.disciplina,aIni:a.inicio,aFim:a.fim,aSala:a.sala});return}
     if(t.dataset.falhei){const s=sessoes.find(x=>x.id===t.dataset.falhei);t.disabled=true;
       await db.doc("sessoes/"+s.id).update({base:hojeISO(),falhas:(s.falhas||0)+1,revisoes:{"1":false,"7":false,"30":false}});
       status("Sem stress: volta a aparecer amanhã. Relê a matéria hoje.")}
+    if(t.dataset.askf){confirmar=t.dataset.askf;render();return}
+    if(t.dataset.delf){await db.doc("faltas/"+t.dataset.delf).delete();confirmar=null;status("Falta apagada.")}
+    if(t.dataset.tenho){t.disabled=true;await db.doc("faltas/"+t.dataset.tenho).update({temMateria:true});status("Boa. Agora estuda essa matéria.")}
+    if(t.dataset.compensei){const f=faltas.find(x=>x.id===t.dataset.compensei);t.disabled=true;
+      await db.doc("faltas/"+f.id).update({compensada:true,compensadaEm:hojeISO()});
+      acabarEdicao("formSessao");$("sData").value=hojeISO();$("sDisc").value=f.disciplina;
+      const m=manuais.find(y=>norm(y.disciplina)===norm(f.disciplina));$("sManual").value=m?m.id:"";
+      $("sOrigem").value="Caderno";$("sMateria").value="";$("sNotas").value=`Aula de ${fmt(f.data)} a que faltei.`;
+      $("formSessao").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("sMateria").focus({preventScroll:true}),400);
+      status(`Falta de ${f.disciplina} compensada. Escreve em baixo a matéria e junta as fotos, para entrar nas revisões.`);return}
     if(t.dataset.estudei){const x=testes.find(y=>y.id===t.dataset.estudei);t.disabled=true;
       await db.doc("testes/"+x.id).update({estudo:{[t.dataset.k]:true}});
       acabarEdicao("formSessao");$("sData").value=hojeISO();$("sDisc").value=x.disciplina;
@@ -459,10 +550,43 @@ $("formSessao").addEventListener("submit",async e=>{
   const d={data:$("sData").value||hojeISO(),disciplina:$("sDisc").value.trim(),manualId:$("sManual").value,materia:$("sMateria").value.trim(),paginas:$("sPag").value.trim(),origem:$("sOrigem").value,notas:$("sNotas").value.trim()};
   if(!d.materia||!d.disciplina)return;
   if(!editando.formSessao)Object.assign(d,{revisoes:{"1":false,"7":false,"30":false},criado:new Date().toISOString()}); // a editar, as revisões ficam como estavam
-  try{const r=await gravar("formSessao","sessoes",d);["sMateria","sPag","sNotas"].forEach(id=>$(id).value="");$("sData").value=hojeISO();status(r==="editado"?"Registo alterado.":"Guardado. Primeira revisão amanhã.")}
+  const btn=e.target.querySelector("button[type=submit]");
+  try{
+    const files=[...$("sFotos").files];
+    if(files.length){
+      btn.disabled=true;status(`A guardar ${files.length} ${files.length===1?"foto":"fotos"}…`);
+      const novas=[];for(const f of files)novas.push(await db.fotos.guardar(await comprimir(f)));
+      const antigas=editando.formSessao?((sessoes.find(x=>x.id===editando.formSessao)||{}).fotos||[]):[];
+      d.fotos=[...antigas,...novas];
+    }
+    const r=await gravar("formSessao","sessoes",d);
+    ["sMateria","sPag","sNotas","sFotos"].forEach(id=>$(id).value="");$("sFotosPrev").innerHTML="";$("sData").value=hojeISO();
+    status(r==="editado"?"Registo alterado.":"Guardado. Primeira revisão amanhã.");
+  }
   catch(err){status("Não foi possível guardar o registo ("+((err&&err.code)||"erro")+").",true)}
+  btn.disabled=false;
 });
 $("hFiltro").addEventListener("change",render);
+$("fData").value=hojeISO();
+$("fData").addEventListener("change",renderAulasFalta);
+$("faltaDet").addEventListener("toggle",renderAulasFalta);
+$("formFalta").addEventListener("submit",async e=>{
+  e.preventDefault();if(!db)return;
+  const data=$("fData").value,aulas=$("fAulas").aulas||[],agora=new Date().toISOString();
+  const escolhidas=[...$("fAulas").querySelectorAll("input:checked")].map(i=>aulas[+i.value]);
+  const lista=escolhidas.map(a=>({data,disciplina:a.disciplina,inicio:a.inicio}));
+  if($("fOutra").value.trim())lista.push({data,disciplina:$("fOutra").value.trim(),inicio:""});
+  if(!lista.length){status("Escolhe pelo menos uma aula.",true);return}
+  try{
+    for(const f of lista)await db.collection("faltas").add({...f,temMateria:false,compensada:false,criado:agora});
+    $("fOutra").value="";$("faltaDet").open=false;
+    status(`${lista.length} ${lista.length===1?"falta registada":"faltas registadas"}. Estão em "Para compensar".`);
+  }catch(err){status("Não foi possível guardar a falta.",true)}
+});
+$("sFotos").addEventListener("change",()=>{
+  const prev=$("sFotosPrev");prev.querySelectorAll("img.nova").forEach(i=>{URL.revokeObjectURL(i.src);i.remove()});
+  [...$("sFotos").files].forEach(f=>{const i=document.createElement("img");i.className="nova";i.src=URL.createObjectURL(f);i.alt="Foto nova";prev.appendChild(i)});
+});
 $("formTeste").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
   const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim()};
@@ -503,6 +627,7 @@ abrirBD({pedirLogin}).then(base=>{
   db.collection("manuais").onSnapshot(s=>{manuais=s.docs.map(d=>({id:d.id,...d.data()})).sort(ord);render()});
   db.collection("testes").onSnapshot(s=>{testes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  db.collection("faltas").onSnapshot(s=>{faltas=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   status("");
 }).catch(err=>status(err.message||"Não consegui abrir os dados.",true));
