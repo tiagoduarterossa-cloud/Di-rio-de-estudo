@@ -97,6 +97,37 @@ details[open].panel summary::after{content:"▴"}
 .checks label{display:flex;gap:6px;align-items:center;font:600 .9rem var(--f-body);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer}
 .checks input{width:auto;margin:0}
 .checks p{margin:0}
+/* Notas */
+.pill.nota.boa{background:var(--ok);color:#000}
+.pill.nota.ma{background:var(--danger);color:#000}
+/* Tirar foto ao editar */
+.foto-ed{position:relative;display:inline-block}
+.foto-ed .tirar{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;border:0;background:var(--danger);color:#000;font:700 16px/24px var(--f-body);cursor:pointer;padding:0}
+/* Calendário */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .cab{font:600 .75rem var(--f-body);color:var(--muted);padding:4px 0}
+.cal .dia{background:none;border:1px solid transparent;border-radius:8px;color:var(--ink);font:600 .95rem var(--f-body);padding:6px 0 4px;cursor:pointer;display:grid;gap:2px;justify-items:center;min-height:44px}
+.cal .dia.hoje{border-color:var(--accent)}
+.cal .dia.teste{background:var(--mark);color:var(--mark-ink)}
+.cal .dia.sel{outline:2px solid var(--muted);outline-offset:1px}
+.pts{display:flex;gap:3px;min-height:6px}
+.pt{display:inline-block;width:6px;height:6px;border-radius:50%;vertical-align:middle}
+.pt.teste{background:var(--mark)}.pt.estudo{background:var(--accent)}.pt.falta{background:var(--danger)}.pt.reg{background:var(--ok)}
+.cal-leg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0}
+.cal-leg .pt{margin-left:6px}
+/* Resumos e quiz */
+.resumo-texto{display:grid;gap:8px}
+.resumo-texto p,.resumo-texto ul{margin:0}
+.resumo-texto ul{padding-left:20px;display:grid;gap:4px}
+.resumo-texto b{color:var(--mark)}
+.opcoes{display:grid;gap:8px}
+.opcoes .btn{justify-self:stretch;text-align:left;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-weight:500}
+.opcoes .btn.certa{background:var(--ok);color:#000;border-color:var(--ok)}
+.opcoes .btn.errada{background:var(--danger);color:#000;border-color:var(--danger)}
+.opcoes .btn.escolhida{border-color:var(--accent);outline:2px solid var(--accent)}
+.barra{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.barra span{display:block;height:100%;background:var(--accent)}
+.resposta{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
 .count{font:500 .85rem var(--f-mono);color:var(--muted)}
 </style>
 </head>
@@ -111,6 +142,7 @@ details[open].panel summary::after{content:"▴"}
   <nav class="tabs" role="tablist">
     <button role="tab" id="t-hoje" aria-selected="true" data-tab="hoje">Hoje</button>
     <button role="tab" id="t-testes" aria-selected="false" data-tab="testes">Testes</button>
+    <button role="tab" id="t-resumos" aria-selected="false" data-tab="resumos">Resumos</button>
     <button role="tab" id="t-horario" aria-selected="false" data-tab="horario">Horário</button>
     <button role="tab" id="t-manuais" aria-selected="false" data-tab="manuais">Manuais</button>
     <button role="tab" id="t-hist" aria-selected="false" data-tab="hist">Histórico</button>
@@ -178,6 +210,12 @@ details[open].panel summary::after{content:"▴"}
       <p class="notas">Os testes de novembro: História, Ciências Naturais, Matemática e Físico-Química.</p>
       <button class="btn" type="button" id="btnTes">Carregar os meus testes</button>
     </div>
+    <div class="panel">
+      <div class="top"><button class="btn small ghost" type="button" data-mes="-1" aria-label="Mês anterior">‹</button><h2 id="calTitulo"></h2><button class="btn small ghost" type="button" data-mes="1" aria-label="Mês seguinte">›</button></div>
+      <div class="cal" id="cal"></div>
+      <p class="notas cal-leg"><span class="pt teste"></span> teste <span class="pt estudo"></span> estudar <span class="pt falta"></span> falta <span class="pt reg"></span> estudei</p>
+      <ul class="list" id="calDia"></ul>
+    </div>
     <form class="panel" id="formTeste">
       <h2>Adicionar teste ou trabalho</h2>
       <div class="row">
@@ -188,11 +226,35 @@ details[open].panel summary::after{content:"▴"}
         <label for="tTipo">Tipo<select id="tTipo"><option>Teste</option><option>Trabalho</option><option>Apresentação</option><option>Ficha</option></select></label>
         <label for="tMateria">Matéria (opcional)<input id="tMateria" placeholder="Ex.: Cap. 2 e 3"></label>
       </div>
+      <label for="tNota">Nota em % (depois do teste)<input type="number" id="tNota" min="0" max="100" step="1" inputmode="numeric" placeholder="Ex.: 78"></label>
       <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formTeste" hidden>Cancelar</button></div>
     </form>
     <div class="panel">
+      <h2>Notas e estudo</h2>
+      <p class="notas">Para cada teste com nota: quantas vezes estudaste essa disciplina nas duas semanas antes. Serve para veres se estudar mais está a dar resultado.</p>
+      <div id="notasList"></div>
+    </div>
+    <div class="panel">
       <h2>Calendário de avaliações</h2>
       <ul class="list" id="testList"></ul>
+    </div>
+  </section>
+
+  <section id="resumos" hidden>
+    <div class="panel" id="quiz" hidden></div>
+    <details class="panel" id="novoResumo">
+      <summary><h2>Novo resumo</h2></summary>
+      <div class="sub-form">
+        <p class="notas"><b>1.</b> Copia o pedido e cola-o numa conversa nova no Claude. Junta as fotos do caderno ou do manual e diz a disciplina.</p>
+        <button class="btn ghost" type="button" id="btnPedido">Copiar pedido para o Claude</button>
+        <p class="notas"><b>2.</b> Copia a resposta toda do Claude e cola-a aqui.</p>
+        <label for="rTexto">Resposta do Claude<textarea id="rTexto" rows="8" placeholder="# Título&#10;Disciplina: ...&#10;## Resumo&#10;...&#10;## Perguntas&#10;P: ..."></textarea></label>
+        <button class="btn" type="button" id="btnResumo">Guardar resumo</button>
+      </div>
+    </details>
+    <div class="panel">
+      <div class="filter"><label for="rFiltro">Disciplina<select id="rFiltro"></select></label><span class="count" id="rCount"></span></div>
+      <ul class="list" id="resList"></ul>
     </div>
   </section>
 
@@ -263,6 +325,7 @@ details[open].panel summary::after{content:"▴"}
 <script>
 const INTERVALOS=[1,7,30];
 let faltas=[];
+const fotosTirar=new Set(); // fotos a tirar do registo que está a ser editado
 let db=null, manuais=[], sessoes=[], testes=[], horario=[], podeEscrever=true, confirmar=null;
 const editando={}; // formulário -> id do registo que está a ser editado
 const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
@@ -298,7 +361,7 @@ function status(t,err){const s=$("status");s.textContent=t||"";s.classList.toggl
 
 function abrirTab(nome){
   document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===nome));
-  ["hoje","testes","horario","manuais","hist"].forEach(id=>$(id).hidden=id!==nome);
+  ["hoje","testes","resumos","horario","manuais","hist"].forEach(id=>$(id).hidden=id!==nome);
 }
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>abrirTab(b.dataset.tab)));
 
@@ -430,7 +493,7 @@ function renderEstudo(){
     const atraso=diasAte(dt);
     return `<li class="due"><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")} ${quando(diasAte(t.data))}</span><span class="date">${atraso<0?`atrasado ${-atraso}d`:"hoje"}</span></div>
       <span class="materia">${verbo(t)} ${esc(norm(t.tipo||"teste"))} de ${esc(t.disciplina)}</span>${t.materia?`<span class="notas">${esc(t.materia)}</span>`:""}
-      <div class="chips"><button class="btn small" data-estudei="${t.id}" data-k="${k}">Estudei</button></div></li>`}).join("")
+      <div class="chips"><button class="btn small" data-estudei="${t.id}" data-k="${k}">Estudei</button>${(()=>{const rs=resumos.filter(x=>norm(x.disciplina)===norm(t.disciplina));return rs.length?`<button class="btn small ghost" data-quiz="${rs[0].id}">Quiz de ${esc(t.disciplina)}</button>`:""})()}</div></li>`}).join("")
     :`<p class="empty">${testes.some(t=>t.data>hoje)?"Hoje não tens estudo marcado para testes.":"Sem testes marcados. Quando adicionares um, a app marca 3 dias de estudo antes dele."}</p>`;
   $("estudoProx").textContent=depois.length?"A seguir: "+depois.map(({t,dt})=>`${t.disciplina} ${quando(diasAte(dt))}`).join(" · ")+".":"";
 }
@@ -463,14 +526,185 @@ function renderAulasFalta(){
   $("fAulas").aulas=aulas;
 }
 
+// Calendário do mês: testes, dias de estudo, faltas e dias em que registaste estudo
+let calMes=hojeISO().slice(0,7), calSel=null;
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function eventosDoDia(d){
+  const ev=[];
+  testes.filter(t=>t.data===d).forEach(t=>ev.push({c:"teste",txt:`${t.tipo||"Teste"} de ${t.disciplina}${t.nota!=null?` · ${t.nota}%`:""}`}));
+  testes.filter(t=>t.data>d).forEach(t=>planoEstudo(t).filter(p=>p.dt===d).forEach(p=>ev.push({c:"estudo",txt:`${verbo(t)} ${norm(t.tipo||"teste")} de ${t.disciplina}${p.feito?" ✓":""}`})));
+  faltas.filter(f=>f.data===d).forEach(f=>ev.push({c:"falta",txt:`Faltaste a ${f.disciplina}${f.compensada?" · compensada":""}`}));
+  sessoes.filter(s=>s.data===d).forEach(s=>ev.push({c:"reg",txt:`Estudaste ${discOf(s)}: ${s.materia}`}));
+  return ev;
+}
+function renderCalendario(){
+  const [a,m]=calMes.split("-").map(Number), hoje=hojeISO();
+  $("calTitulo").textContent=`${MESES[m-1][0].toUpperCase()+MESES[m-1].slice(1)} ${a}`;
+  const primeiro=new Date(a,m-1,1), nDias=new Date(a,m,0).getDate(), vazio=(primeiro.getDay()+6)%7; // semana começa à segunda
+  let html=["S","T","Q","Q","S","S","D"].map(x=>`<span class="cab">${x}</span>`).join("")+"<span></span>".repeat(vazio);
+  for(let d=1;d<=nDias;d++){
+    const iso=`${calMes}-${String(d).padStart(2,"0")}`, ev=eventosDoDia(iso), tipos=[...new Set(ev.map(e=>e.c))];
+    html+=`<button type="button" class="dia${iso===hoje?" hoje":""}${tipos.includes("teste")?" teste":""}${iso===calSel?" sel":""}" data-dia="${iso}">${d}<span class="pts">${tipos.filter(c=>c!=="teste").map(c=>`<span class="pt ${c}"></span>`).join("")}</span></button>`;
+  }
+  $("cal").innerHTML=html;
+  const ev=calSel?eventosDoDia(calSel):[];
+  $("calDia").innerHTML=calSel?(ev.length?ev.map(e=>`<li><div class="top"><span class="materia"><span class="pt ${e.c}"></span> ${esc(e.txt)}</span><span class="date">${fmt(calSel)}</span></div></li>`).join(""):`<li><span class="notas">Nada em ${fmt(calSel)}.</span></li>`):"";
+}
+
+function renderNotas(){
+  const comNota=testes.filter(t=>t.nota!=null).sort((a,b)=>b.data.localeCompare(a.data));
+  if(!comNota.length){$("notasList").innerHTML=`<p class="empty">Quando tiveres a nota de um teste, carrega em Editar nesse teste e escreve-a.</p>`;return}
+  const estudoAntes=t=>sessoes.filter(s=>norm(discOf(s))===norm(t.disciplina)&&s.data<t.data&&s.data>=somaDias(t.data,-14)).length;
+  const porDisc={};comNota.forEach(t=>(porDisc[t.disciplina]||=[]).push(t.nota));
+  const medias=Object.entries(porDisc).sort((a,b)=>a[0].localeCompare(b[0],"pt")).map(([d,n])=>`<span class="chip">${esc(d)} ${Math.round(n.reduce((a,b)=>a+b,0)/n.length)}%</span>`).join("");
+  $("notasList").innerHTML=`<div class="chips">${medias}</div><ul class="list">${comNota.map(t=>{const e=estudoAntes(t);
+    return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${fmt(t.data)}</span><span class="pill nota ${t.nota>=70?"boa":t.nota<50?"ma":""}">${t.nota}%</span></div>
+      <span class="notas">${e?`Estudaste ${e} ${e===1?"vez":"vezes"} nas duas semanas antes.`:"Não registaste estudo nas duas semanas antes."}</span></li>`}).join("")}</ul>`;
+}
+
+// ---------- Resumos com quiz e teste ----------
+// O resumo é feito no Claude (a partir das fotos) e colado aqui num formato simples:
+// "# Título", "Disciplina: X", "## Resumo" (texto), "## Perguntas" com "P:", opções "A) …" + "Certa: B", ou "R: resposta".
+let resumos=[], quiz=null;
+const PEDIDO=`Faz-me um resumo e perguntas de estudo a partir das fotos que junto. Sou aluno do 8.º ano, em Portugal. Escreve em português de Portugal.
+Responde SÓ neste formato, sem mais nada antes ou depois, e sem artefacto:
+
+# Título curto da matéria
+Disciplina: (nome da disciplina)
+## Resumo
+(resumo claro e completo da matéria das fotos; usa tópicos começados por "- " e põe os termos importantes entre **asteriscos**)
+## Perguntas
+P: (pergunta de escolha múltipla)
+A) (opção)
+B) (opção)
+C) (opção)
+D) (opção)
+Certa: (letra)
+P: (pergunta de resposta curta)
+R: (resposta)
+
+Faz entre 10 e 15 perguntas, a maioria de escolha múltipla, só sobre a matéria das fotos e ao nível de um teste do 8.º ano.`;
+
+function lerResumo(txt){
+  const linhas=txt.replace(/\r/g,"").split("\n").map(l=>l.trim().replace(/^\*\*(P|R|Certa|Disciplina):?\*\*:?/i,"$1:").replace(/^\d+[.)]\s*(?=P:)/,""));
+  let titulo="",disciplina="",parte="",resumo=[],perguntas=[],q=null;
+  const fecha=()=>{if(q&&q.p&&(q.r||(q.opcoes.length>=2&&q.certa>=0&&q.certa<q.opcoes.length)))perguntas.push(q.r?{p:q.p,r:q.r}:{p:q.p,opcoes:q.opcoes,certa:q.certa});q=null};
+  for(const l of linhas){
+    let m;
+    if(!titulo&&(m=l.match(/^#\s+(.+)/))&&!l.startsWith("##")){titulo=m[1].trim();continue}
+    if((m=l.match(/^disciplina:\s*(.+)/i))&&!disciplina){disciplina=m[1].trim();continue}
+    if(/^##\s*resumo/i.test(l)){parte="r";continue}
+    if(/^##\s*perguntas/i.test(l)){parte="p";continue}
+    if(parte==="r"){resumo.push(l);continue}
+    if(parte!=="p")continue;
+    if((m=l.match(/^P:\s*(.+)/i))){fecha();q={p:m[1].trim(),opcoes:[],certa:-1,r:""};continue}
+    if(!q)continue;
+    if((m=l.match(/^([A-F])[).]\s*(.+)/)))q.opcoes.push(m[2].trim());
+    else if((m=l.match(/^certa:\s*([A-F])/i)))q.certa=m[1].toUpperCase().charCodeAt(0)-65;
+    else if((m=l.match(/^R:\s*(.+)/i)))q.r=m[1].trim();
+  }
+  fecha();
+  return {titulo,disciplina,texto:resumo.join("\n").trim(),perguntas};
+}
+// Texto do resumo: parágrafos, listas "- " e **negrito**
+function resumoHTML(t){
+  const neg=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+  let html="",lista=false;
+  t.split("\n").forEach(l=>{
+    if(/^[-•*]\s+/.test(l)){if(!lista){html+="<ul>";lista=true}html+=`<li>${neg(l.replace(/^[-•*]\s+/,""))}</li>`;return}
+    if(lista){html+="</ul>";lista=false}
+    if(/^#+\s/.test(l))html+=`<h3>${neg(l.replace(/^#+\s/,""))}</h3>`;else if(l)html+=`<p>${neg(l)}</p>`;
+  });
+  return `<div class="resumo-texto">${html}${lista?"</ul>":""}</div>`;
+}
+const baralhar=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function renderResumos(){
+  const discs=[...new Set(resumos.map(x=>x.disciplina))].sort((a,b)=>a.localeCompare(b,"pt"));
+  const f=$("rFiltro").value;$("rFiltro").innerHTML=`<option value="">Todas</option>`+discs.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join("");$("rFiltro").value=discs.includes(f)?f:"";
+  const lista=resumos.filter(x=>!$("rFiltro").value||x.disciplina===$("rFiltro").value).sort((a,b)=>String(b.criado).localeCompare(String(a.criado)));
+  $("rCount").textContent=`${lista.length} ${lista.length===1?"resumo":"resumos"}`;
+  $("resList").innerHTML=lista.length?lista.map(x=>{
+    const res=x.resultados||[],ult=res[res.length-1],nMC=x.perguntas.filter(q=>q.opcoes).length;
+    const del=confirmar===x.id?`<button class="btn small ghost danger" data-delr="${x.id}">Confirmar</button>`:`<button class="btn small ghost" data-askr="${x.id}">Apagar</button>`;
+    return `<li><div class="top"><span class="tag">${esc(x.disciplina)}</span><span class="date">${x.perguntas.length} perguntas${ult?` · último ${ult.modo} ${Math.round(100*ult.acertos/ult.total)}%`:""}</span></div>
+      <span class="materia">${esc(x.titulo)}</span>
+      <div class="chips"><button class="btn small ghost" data-ler="${x.id}">Ler</button><button class="btn small" data-quiz="${x.id}">Quiz</button>${nMC?`<button class="btn small ghost" data-teste="${x.id}">Teste</button>`:""}${del}</div></li>`}).join("")
+    :`<p class="empty">${resumos.length?"Sem resumos nesta disciplina.":"Ainda não há resumos. Abre \"Novo resumo\" e segue os 2 passos."}</p>`;
+}
+
+// Ecrã do quiz/teste/leitura
+function abrirResumo(id,modo){
+  const x=resumos.find(y=>y.id===id);if(!x)return;
+  abrirTab("resumos");
+  if(modo==="ler")quiz={x,modo};
+  else{
+    const qs=modo==="teste"?baralhar(x.perguntas.filter(q=>q.opcoes)):baralhar(x.perguntas).slice(0,10);
+    quiz={x,modo,qs,i:0,acertos:0,resp:null,erros:[],escolhas:[]};
+  }
+  renderQuiz();$("quiz").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function renderQuiz(){
+  const el=$("quiz");
+  if(!quiz){el.hidden=true;el.innerHTML="";return}
+  el.hidden=false;
+  const {x,modo}=quiz, fechar=`<button class="btn small ghost" data-fecharq="1">Fechar</button>`;
+  if(modo==="ler"){el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)}</span>${fechar}</div><h2>${esc(x.titulo)}</h2>${resumoHTML(x.texto)}<div class="chips"><button class="btn" data-quiz="${x.id}">Fazer quiz</button></div>`;return}
+  const {qs,i}=quiz;
+  if(i>=qs.length){
+    const pct=Math.round(100*quiz.acertos/qs.length);
+    const revisao=quiz.erros.map(e=>`<li><span class="materia">${esc(e.q.p)}</span><span class="notas">${e.tua!=null?`Respondeste: ${esc(e.tua)} · `:""}Certa: <b>${esc(e.certa)}</b></span></li>`).join("");
+    el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)} · ${modo}</span>${fechar}</div><h2>${quiz.acertos} em ${qs.length} · ${pct}%</h2>
+      <p class="notas">${pct>=90?"Excelente. Esta matéria está segura.":pct>=70?"Bom. Revê as que falhaste e repete daqui a uns dias.":pct>=50?"Ainda há falhas. Relê o resumo e faz outra vez amanhã.":"Esta matéria ainda não está. Lê o resumo com calma e volta a fazer o quiz."}</p>
+      ${revisao?`<h3>Para rever</h3><ul class="list">${revisao}</ul>`:""}
+      <div class="chips"><button class="btn" data-${modo}="${x.id}">Repetir</button><button class="btn ghost" data-ler="${x.id}">Ler resumo</button></div>`;
+    return;
+  }
+  const q=qs[i], prog=`<div class="barra"><span style="width:${Math.round(100*i/qs.length)}%"></span></div>`;
+  let corpo="";
+  if(q.opcoes){
+    corpo=`<div class="opcoes">${q.opcoes.map((o,k)=>{
+      let c="";if(quiz.resp!=null){if(modo==="quiz"){if(k===q.certa)c=" certa";else if(k===quiz.resp)c=" errada"}else if(k===quiz.resp)c=" escolhida"}
+      return `<button class="btn${c}" data-op="${k}"${quiz.resp!=null&&modo==="quiz"?" disabled":""}>${String.fromCharCode(65+k)}) ${esc(o)}</button>`}).join("")}</div>`;
+    if(quiz.resp!=null)corpo+=`<div class="chips"><button class="btn" data-seguinte="1">${i+1<qs.length?"Seguinte":"Ver resultado"}</button></div>`;
+  }else{
+    corpo=quiz.resp==null?`<p class="notas">Pensa na resposta (ou di-la em voz alta) e depois vê se acertaste.</p><div class="chips"><button class="btn" data-mostrar="1">Mostrar resposta</button></div>`
+      :`<div class="resposta">${esc(q.r)}</div><div class="chips"><button class="btn" data-auto="1">Acertei</button><button class="btn ghost" data-auto="0">Errei</button></div>`;
+  }
+  el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)} · ${modo} · ${i+1} de ${qs.length}</span>${fechar}</div>${prog}<h2>${esc(q.p)}</h2>${corpo}`;
+}
+async function acabarQuiz(){
+  const {x,modo,qs,acertos}=quiz;
+  try{await db.doc("resumos/"+x.id).update({resultados:[...(x.resultados||[]),{data:hojeISO(),modo,acertos,total:qs.length}]})}catch(e){}
+}
+async function quizClique(t){
+  if(!quiz)return false;
+  const q=quiz.qs&&quiz.qs[quiz.i];
+  if(t.dataset.fecharq){quiz=null;renderQuiz();return true}
+  if(t.dataset.op!=null&&q&&quiz.resp==null){
+    const k=+t.dataset.op;quiz.resp=k;
+    if(k===q.certa)quiz.acertos++;else quiz.erros.push({q,tua:q.opcoes[k],certa:q.opcoes[q.certa]});
+    if(quiz.modo==="teste"){quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz()}
+    renderQuiz();return true;
+  }
+  if(t.dataset.seguinte){quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz();renderQuiz();return true}
+  if(t.dataset.mostrar){quiz.resp=1;renderQuiz();return true}
+  if(t.dataset.auto!=null&&q){if(t.dataset.auto==="1")quiz.acertos++;else quiz.erros.push({q,tua:null,certa:q.r});quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz();renderQuiz();return true}
+  return false;
+}
+
 function renderAgenda(){
   renderEstudo();
+  renderResumos();
+  renderNotas();
+  renderCalendario();
   const hoje=hojeISO();
   const fut=testes.filter(t=>t.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
   const pass=testes.filter(t=>t.data<hoje).sort((a,b)=>b.data.localeCompare(a.data));
   const item=(t,comBotao)=>{
     const n=diasAte(t.data);
-    const pill=n<0?"":`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
+    const pill=t.nota!=null?`<span class="pill nota ${t.nota>=70?"boa":t.nota<50?"ma":""}">${t.nota}%</span>`
+      :n<0?(comBotao?`<span class="date">sem nota · Editar para a pôr</span>`:""):`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
     const b=!comBotao?"":`<button class="btn small ghost" data-edt="${t.id}">Editar</button>`+(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
     return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")}</span><span class="date">${fmt(t.data)}</span></div>
       <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${comBotao&&n>0?`<div class="chips">${planoEstudo(t).map(p=>`<span class="chip ${p.feito?"done":(p.dt<=hojeISO()?"late":"")}">estudo ${fmt(p.dt).slice(0,5)}${p.feito?" ✓":""}</span>`).join("")}</div>`:""}${b?`<div class="chips">${b}</div>`:""}</li>`};
@@ -509,10 +743,19 @@ document.addEventListener("click",async e=>{
     if(t.dataset.delh){await db.doc("horario/"+t.dataset.delh).delete();confirmar=null;status("Aula apagada.")}
     if(t.dataset.delm){await db.doc("manuais/"+t.dataset.delm).delete();confirmar=null;status("Manual removido. Os registos dele ficam no histórico.")}
     if(t.dataset.dels){const s=sessoes.find(x=>x.id===t.dataset.dels);for(const f of (s&&s.fotos)||[])await db.fotos.apagar(f).catch(()=>{});await db.doc("sessoes/"+t.dataset.dels).delete();confirmar=null;status("Registo apagado.")}
-    if(t.dataset.cancel){acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();$("sFotosPrev").innerHTML="";if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
+    if(await quizClique(t))return;
+    if(t.dataset.ler){abrirResumo(t.dataset.ler,"ler");return}
+    if(t.dataset.quiz){abrirResumo(t.dataset.quiz,"quiz");return}
+    if(t.dataset.teste){abrirResumo(t.dataset.teste,"teste");return}
+    if(t.dataset.askr){confirmar=t.dataset.askr;render();return}
+    if(t.dataset.delr){if(quiz&&quiz.x.id===t.dataset.delr){quiz=null;renderQuiz()}await db.doc("resumos/"+t.dataset.delr).delete();confirmar=null;status("Resumo apagado.")}
+    if(t.dataset.mes){const [a,m]=calMes.split("-").map(Number),d=new Date(a,m-1+ +t.dataset.mes,1);calMes=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;calSel=null;renderCalendario();return}
+    if(t.dataset.dia){calSel=calSel===t.dataset.dia?null:t.dataset.dia;renderCalendario();return}
+    if(t.dataset.tirafoto){fotosTirar.add(t.dataset.tirafoto);t.closest(".foto-ed").remove();status("A foto sai quando carregares em Guardar alterações.");return}
+    if(t.dataset.cancel){fotosTirar.clear();acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();$("sFotosPrev").innerHTML="";if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
     if(t.dataset.edm){const m=manuais.find(x=>x.id===t.dataset.edm);editar("formManual","manuais",m.id,{mTitulo:m.titulo,mDisc:m.disciplina,mNotas:m.notas});return}
-    if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);$("sFotos").value="";$("sFotosPrev").innerHTML=fotosHTML(s.fotos).replace(/^<div class="fotos">|<\/div>$/g,"");carregarFotos();editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
-    if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia});return}
+    if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);$("sFotos").value="";fotosTirar.clear();$("sFotosPrev").innerHTML=(s.fotos||[]).map(id=>`<span class="foto-ed"><img data-foto="${esc(id)}" alt="Foto do caderno"><button type="button" class="tirar" data-tirafoto="${esc(id)}" aria-label="Tirar esta foto">×</button></span>`).join("");carregarFotos();editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
+    if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia,tNota:x.nota??""});return}
     if(t.dataset.edh){const a=horario.find(y=>y.id===t.dataset.edh);editar("formAula","horario",a.id,{aDia:a.dia,aDisc:a.disciplina,aIni:a.inicio,aFim:a.fim,aSala:a.sala});return}
     if(t.dataset.falhei){const s=sessoes.find(x=>x.id===t.dataset.falhei);t.disabled=true;
       await db.doc("sessoes/"+s.id).update({base:hojeISO(),falhas:(s.falhas||0)+1,revisoes:{"1":false,"7":false,"30":false}});
@@ -553,13 +796,16 @@ $("formSessao").addEventListener("submit",async e=>{
   const btn=e.target.querySelector("button[type=submit]");
   try{
     const files=[...$("sFotos").files];
-    if(files.length){
-      btn.disabled=true;status(`A guardar ${files.length} ${files.length===1?"foto":"fotos"}…`);
+    const antigas=editando.formSessao?((sessoes.find(x=>x.id===editando.formSessao)||{}).fotos||[]):[];
+    const tirar=antigas.filter(id=>fotosTirar.has(id));
+    if(files.length||tirar.length){
+      btn.disabled=true;if(files.length)status(`A guardar ${files.length} ${files.length===1?"foto":"fotos"}…`);
       const novas=[];for(const f of files)novas.push(await db.fotos.guardar(await comprimir(f)));
-      const antigas=editando.formSessao?((sessoes.find(x=>x.id===editando.formSessao)||{}).fotos||[]):[];
-      d.fotos=[...antigas,...novas];
+      d.fotos=[...antigas.filter(id=>!fotosTirar.has(id)),...novas];
     }
     const r=await gravar("formSessao","sessoes",d);
+    for(const id of tirar)await db.fotos.apagar(id).catch(()=>{});
+    fotosTirar.clear();
     ["sMateria","sPag","sNotas","sFotos"].forEach(id=>$(id).value="");$("sFotosPrev").innerHTML="";$("sData").value=hojeISO();
     status(r==="editado"?"Registo alterado.":"Guardado. Primeira revisão amanhã.");
   }
@@ -567,6 +813,22 @@ $("formSessao").addEventListener("submit",async e=>{
   btn.disabled=false;
 });
 $("hFiltro").addEventListener("change",render);
+$("rFiltro").addEventListener("change",renderResumos);
+$("btnPedido").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(PEDIDO);status("Pedido copiado. Cola-o no Claude e junta as fotos.")}
+  catch(e){$("rTexto").value=PEDIDO;$("rTexto").select();status("Não consegui copiar sozinho: o pedido está na caixa, copia-o daí.",true)}
+});
+$("btnResumo").addEventListener("click",async e=>{
+  if(!db)return;
+  const r=lerResumo($("rTexto").value);
+  if(!r.titulo||!r.perguntas.length){status(!r.titulo?"Não encontrei o título (linha que começa com #). Copiaste a resposta toda?":"Não encontrei perguntas. Confirma que há uma parte \"## Perguntas\" com linhas \"P:\".",true);return}
+  e.target.disabled=true;
+  try{
+    await db.collection("resumos").add({...r,disciplina:r.disciplina||"Sem disciplina",resultados:[],criado:new Date().toISOString()});
+    $("rTexto").value="";$("novoResumo").open=false;status(`Resumo guardado com ${r.perguntas.length} perguntas.`);
+  }catch(err){status("Não foi possível guardar o resumo.",true)}
+  e.target.disabled=false;
+});
 $("fData").value=hojeISO();
 $("fData").addEventListener("change",renderAulasFalta);
 $("faltaDet").addEventListener("toggle",renderAulasFalta);
@@ -589,10 +851,11 @@ $("sFotos").addEventListener("change",()=>{
 });
 $("formTeste").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
-  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim()};
+  const nota=$("tNota").value.trim();
+  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim(),nota:nota===""?null:Math.max(0,Math.min(100,Math.round(+nota)))};
   if(!d.data||!d.disciplina)return;
   if(!editando.formTeste)d.criado=new Date().toISOString();
-  try{const r=await gravar("formTeste","testes",d);["tDisc","tMateria"].forEach(id=>$(id).value="");status(r==="editado"?"Avaliação alterada.":"Avaliação adicionada.")}
+  try{const r=await gravar("formTeste","testes",d);["tDisc","tMateria","tNota"].forEach(id=>$(id).value="");status(r==="editado"?"Avaliação alterada.":"Avaliação adicionada.")}
   catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
 });
 $("formAula").addEventListener("submit",async e=>{
@@ -626,7 +889,10 @@ abrirBD({pedirLogin}).then(base=>{
   const ord=(a,b)=>(a.disciplina+a.titulo).localeCompare(b.disciplina+b.titulo,"pt");
   db.collection("manuais").onSnapshot(s=>{manuais=s.docs.map(d=>({id:d.id,...d.data()})).sort(ord);render()});
   db.collection("testes").onSnapshot(s=>{testes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
-  db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render()});
+  db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render();
+    // o "Ad" do horário é Arte Digital: corrige as aulas carregadas antes de sabermos o nome
+    horario.filter(a=>a.disciplina==="Ad").forEach(a=>db.doc("horario/"+a.id).update({disciplina:"Arte Digital"}))});
+  db.collection("resumos").onSnapshot(s=>{resumos=s.docs.map(d=>({id:d.id,...d.data()}));if(quiz){const x=resumos.find(y=>y.id===quiz.x.id);if(x)quiz.x=x}render()});
   db.collection("faltas").onSnapshot(s=>{faltas=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   status("");

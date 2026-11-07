@@ -21,6 +21,17 @@ Atenção: a "Descarregar cópia" não leva as fotos, só o texto.
 ## Faltas
 Em Hoje > "Faltei a aulas" escolhes o dia e as aulas (vêm do horário). Cada falta fica em "Para compensar" com dois passos: "Já tenho a matéria" e "Compensei". Este último abre o registo, para a matéria entrar nas revisões. As faltas de disciplinas com teste perto aparecem primeiro.
 
+## Resumos, quiz e teste
+Os resumos fazem-se no Claude e guardam-se na app:
+1. Separador Resumos > "Novo resumo" > "Copiar pedido para o Claude".
+2. Cola o pedido numa conversa nova no Claude e junta as fotos do caderno.
+3. Copia a resposta toda e cola-a na app. Carrega em "Guardar resumo".
+
+Depois, em cada resumo: "Ler", "Quiz" (até 10 perguntas, vês logo se acertaste) e "Teste" (todas as de escolha múltipla, nota só no fim). Os resultados ficam guardados. Se houver um resumo da disciplina, o "Estudar para" mostra um botão de quiz.
+
+## Calendário e notas
+No separador Testes há um calendário do mês (testes, dias de estudo, faltas e dias em que estudaste; toca num dia para ver o que tem) e o painel "Notas e estudo": escreve a nota de cada teste (Editar) e vês quantas vezes estudaste essa disciplina nas duas semanas antes.
+
 ## Onde ficam os dados
 Há duas maneiras, e a app escolhe sozinha pelo `config.js`:
 
@@ -74,5 +85,4 @@ A chave "anon" pode estar no GitHub sem problema: a regra da tabela só deixa ca
 - `logo.svg`: o logo. Os `.png` são o mesmo logo em tamanhos para o ícone do telemóvel; se mudares o logo, gera-os outra vez e sobe o `?v=` no `index.html` e no `manifest.json`, para o browser não mostrar o antigo.
 
 ## Ideias para continuar
-1. Resumos com quiz e teste.
-2. Ver numa semana só o tempo de estudo por disciplina.
+1. Ver numa semana só o tempo de estudo por disciplina.
