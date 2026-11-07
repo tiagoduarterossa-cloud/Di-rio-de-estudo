@@ -9,25 +9,22 @@
 <link rel="manifest" href="manifest.json?v=2">
 <meta name="apple-mobile-web-app-title" content="Estudo">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0B0B0D">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 *{box-sizing:border-box}[hidden]{display:none!important}
 
-/* Caderno de estudo: coluna única, separadores no topo, marcador amarelo só no que está para rever */
+/* Tema preto, a combinar com o logo: fundo preto, cartões em grafite, branco como destaque.
+   O amarelo fica só no que está para rever, para saltar à vista. */
 :root{
-  --bg:#F2F4F1; --surface:#FFFFFF; --ink:#18262A; --muted:#5D6C6E; --line:#D7DEDB;
-  --accent:#1F5F66; --mark:#F2DE5C; --mark-ink:#3A3200; --ok:#2E7D4F; --danger:#A2392F;
+  --bg:#000000; --surface:#111113; --ink:#EDEDF0; --muted:#8B8B95; --line:#26262B;
+  --accent:#E6E6EA; --mark:#D9C55A; --mark-ink:#1A1600; --ok:#6CC08F; --danger:#E0857B;
   --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
   --f-body:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#111A1C; --surface:#182427; --ink:#E4ECEA; --muted:#93A4A5; --line:#2A3A3D;
-  --accent:#6FB8BF; --mark:#C9B53A; --mark-ink:#1A1600; --ok:#6CC08F; --danger:#E0857B; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#111A1C; --surface:#182427; --ink:#E4ECEA; --muted:#93A4A5; --line:#2A3A3D;
-  --accent:#6FB8BF; --mark:#C9B53A; --mark-ink:#1A1600; --ok:#6CC08F; --danger:#E0857B; color-scheme:dark}
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);
   margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
 .wrap{max-width:680px;margin:0 auto;display:grid;gap:20px}
@@ -66,7 +63,7 @@ ul.list li:first-child{border-top:0}
 .tag{font:600 .72rem var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
 .materia{font-weight:600;overflow-wrap:anywhere}
 .notas{color:var(--muted);font-size:.92rem;overflow-wrap:anywhere;white-space:pre-wrap}
-.due .materia{background:linear-gradient(transparent 55%,var(--mark) 55%);color:var(--ink);padding:0 2px}
+.due .materia{background:var(--mark);color:var(--mark-ink);padding:0 6px;border-radius:4px;justify-self:start}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{font:500 .75rem var(--f-mono);border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
 .chip.done{color:var(--ok);border-color:var(--ok)}
