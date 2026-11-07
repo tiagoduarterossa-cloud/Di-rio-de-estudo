@@ -607,6 +607,7 @@ Responde SÓ com um bloco de código JSON, sem artefacto e sem texto antes ou de
 
 Regras:
 - "certa" na escolha é a posição da opção certa, a contar do 0.
+- As opções vão ser baralhadas: não uses "todas as anteriores", "nenhuma das anteriores", "A e B" nem nada que dependa da ordem.
 - Níveis: 1 = fácil (datas, nomes, definições), 2 = médio (relacionar, explicar causas e consequências), 3 = difícil (comparar, justificar, perguntas com rasteira, desenvolvimento).
 - Faz pelo menos 10 perguntas de escolha múltipla e 4 de verdadeiro ou falso em cada nível, 1 ou 2 de ligar (4 a 10 pares cada) e 6 a 10 de resposta escrita (níveis 2 e 3).
 - Marca com "final": true umas 15 perguntas, de todos os tipos e níveis, para o teste final.`;
@@ -700,8 +701,15 @@ function renderResumos(){
     :`<p class="empty">${resumos.length?"Sem resumos nesta disciplina.":"Ainda não há resumos. Abre \"Novo resumo\" e segue os 2 passos."}</p>`;
 }
 
-// Escolhe as perguntas de cada modo
-function perguntasDe(x,modo,nivel){
+// Baralha as opções de escolha múltipla e acompanha a posição da certa (para não se decorar "a certa é a B")
+function baralharOpcoes(q){
+  if(tipoDe(q)!=="escolha")return q;
+  const ordem=baralhar(q.opcoes.map((_,k)=>k));
+  return {...q,opcoes:ordem.map(k=>q.opcoes[k]),certa:ordem.indexOf(q.certa)};
+}
+// Escolhe as perguntas de cada modo (ordem e opções novas sempre que começas)
+function perguntasDe(x,modo,nivel){return escolherPerguntas(x,modo,nivel).map(baralharOpcoes)}
+function escolherPerguntas(x,modo,nivel){
   const P=x.perguntas, doNivel=q=>!nivel||nivelDe(q)===nivel;
   const ordemTeste=["ligar","vf","escolha","escrita"]; // grupos como num teste a sério
   const porGrupos=qs=>ordemTeste.flatMap(t=>baralhar(qs.filter(q=>tipoDe(q)===t)));
