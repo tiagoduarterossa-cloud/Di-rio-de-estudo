@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Diário de Estudo</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="Estudo">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F5F66">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 *{box-sizing:border-box}[hidden]{display:none!important}
@@ -25,6 +31,8 @@
 body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);
   margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
 .wrap{max-width:680px;margin:0 auto;display:grid;gap:20px}
+
+.marca{display:flex;align-items:center;gap:12px}.marca img{flex:none;border-radius:10px}
 h1{font:700 1.9rem/1.1 var(--f-display);margin:0;text-wrap:balance}
 h2{font:600 1.15rem/1.2 var(--f-display);margin:0}
 .sub{color:var(--muted);margin:4px 0 0}
@@ -74,7 +82,7 @@ ul.list li:first-child{border-top:0}
 <body>
 <div class="wrap">
   <header>
-    <h1>Diário de Estudo</h1>
+    <div class="marca"><img src="logo.svg" alt="" width="44" height="44"><h1>Diário de Estudo</h1></div>
     <p class="sub">Os teus manuais, o que estudaste em cada dia e o que tens para rever.</p>
   </header>
 

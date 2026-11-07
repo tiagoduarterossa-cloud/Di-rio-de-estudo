@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fundo: verde-petróleo da app -->
+  <rect width="512" height="512" rx="112" fill="#1F5F66"/>
+  <!-- Caderno aberto -->
+  <path d="M256 150c-40-26-92-34-146-28v236c54-6 106 2 146 28z" fill="#FFFFFF"/>
+  <path d="M256 150c40-26 92-34 146-28v236c-54-6-106 2-146 28z" fill="#E9EFEC"/>
+  <!-- Linhas de texto -->
+  <g stroke="#1F5F66" stroke-width="12" stroke-linecap="round" opacity=".35">
+    <path d="M146 192c30-2 58 3 82 13"/>
+    <path d="M146 288c30-2 58 3 82 13"/>
+    <path d="M284 205c24-10 52-15 82-13"/>
+    <path d="M284 253c24-10 52-15 82-13"/>
+    <path d="M284 301c24-10 52-15 82-13"/>
+  </g>
+  <!-- Marcador amarelo: o que está para rever -->
+  <path d="M134 220c38-5 74 2 104 16v40c-30-14-66-21-104-16z" fill="#F2DE5C"/>
+  <path d="M146 247c30-2 58 3 82 13" stroke="#1F5F66" stroke-width="12" stroke-linecap="round"/>
+</svg>
