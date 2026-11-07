@@ -1,18 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Fundo: verde-petróleo da app -->
-  <rect width="512" height="512" rx="112" fill="#1F5F66"/>
-  <!-- Caderno aberto -->
-  <path d="M256 150c-40-26-92-34-146-28v236c54-6 106 2 146 28z" fill="#FFFFFF"/>
-  <path d="M256 150c40-26 92-34 146-28v236c-54-6-106 2-146 28z" fill="#E9EFEC"/>
-  <!-- Linhas de texto -->
-  <g stroke="#1F5F66" stroke-width="12" stroke-linecap="round" opacity=".35">
-    <path d="M146 192c30-2 58 3 82 13"/>
-    <path d="M146 288c30-2 58 3 82 13"/>
-    <path d="M284 205c24-10 52-15 82-13"/>
-    <path d="M284 253c24-10 52-15 82-13"/>
-    <path d="M284 301c24-10 52-15 82-13"/>
-  </g>
-  <!-- Marcador amarelo: o que está para rever -->
-  <path d="M134 220c38-5 74 2 104 16v40c-30-14-66-21-104-16z" fill="#F2DE5C"/>
-  <path d="M146 247c30-2 58 3 82 13" stroke="#1F5F66" stroke-width="12" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1C1C1F"/><stop offset="1" stop-color="#050506"/></linearGradient>
+    <linearGradient id="arc" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#7A7A84"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="150" stroke="#2A2A2F" stroke-width="40" fill="none"/>
+  <circle cx="256" cy="256" r="150" stroke="url(#arc)" stroke-width="40" fill="none" stroke-linecap="round"
+          stroke-dasharray="660 1000" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="78" stroke="#3C3C43" stroke-width="28" fill="none" stroke-linecap="round"
+          stroke-dasharray="300 1000" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="16" fill="#FFFFFF"/>
 </svg>
