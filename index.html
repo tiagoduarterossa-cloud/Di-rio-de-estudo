@@ -147,6 +147,11 @@ ul.list li:first-child{border-top:0}
   </section>
 
   <section id="horario" hidden>
+    <div class="panel" id="carregarHor" hidden>
+      <h2>O teu horário está pronto</h2>
+      <p class="notas">Carrega as aulas da semana de uma vez. Depois podes editar ou apagar qualquer uma.</p>
+      <button class="btn" type="button" id="btnHor">Carregar o meu horário</button>
+    </div>
     <form class="panel" id="formAula">
       <h2>Adicionar aula</h2>
       <div class="row">
@@ -154,8 +159,8 @@ ul.list li:first-child{border-top:0}
         <label for="aDisc">Disciplina<input id="aDisc" list="discs" required placeholder="Ex.: Português"></label>
       </div>
       <div class="row">
-        <label for="aIni">Começa<input type="time" id="aIni" required value="08:15"></label>
-        <label for="aFim">Acaba<input type="time" id="aFim" required value="09:05"></label>
+        <label for="aIni">Começa<input type="time" id="aIni" required value="08:50"></label>
+        <label for="aFim">Acaba<input type="time" id="aFim" required value="09:40"></label>
       </div>
       <label for="aSala">Sala ou professor (opcional)<input id="aSala"></label>
       <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formAula" hidden>Cancelar</button></div>
@@ -312,6 +317,7 @@ function renderAgenda(){
       return `<li><div class="top"><span><span class="date">${esc(a.inicio)}–${esc(a.fim)}</span> <span class="materia">${esc(a.disciplina)}</span>${a.sala?` <span class="notas">${esc(a.sala)}</span>`:""}</span>${b}</div></li>`}).join("")}</ul></div>`).join("")
     :`<p class="empty">Ainda não há aulas. Adiciona-as acima, dia a dia. A hora de início passa sozinha para o fim da aula anterior.</p>`;
 
+  $("carregarHor").hidden=!db||horario.length>0;
   const am=new Date(hoje+"T12:00:00");am.setDate(am.getDate()+1);const wd=am.getDay();
   const aulasAm=horario.filter(a=>+a.dia===wd).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
   $("amanha").textContent=aulasAm.length?`Amanhã (${DIAS[wd]}): ${[...new Set(aulasAm.map(a=>a.disciplina))].join(", ")}.`:(horario.length?`Amanhã (${DIAS[wd]}) não tens aulas.`:"");
@@ -398,6 +404,18 @@ abrirBD({pedirLogin}).then(base=>{
   db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   status("");
 }).catch(err=>status(err.message||"Não consegui abrir os dados.",true));
+
+// Horário da escola (horario.json): só junta aulas, não apaga nada
+$("btnHor").addEventListener("click",async e=>{
+  if(!db||horario.length)return;
+  e.target.disabled=true;
+  try{
+    const r=await fetch("horario.json",{cache:"no-store"});if(!r.ok)throw new Error();
+    const aulas=await r.json();
+    for(const a of aulas)await db.collection("horario").add(a);
+    status(`Horário carregado: ${aulas.length} aulas.`);
+  }catch(err){status("Não consegui carregar o horário. Abre a app pelo link do site e tenta outra vez.",true);e.target.disabled=false}
+});
 
 // Cópia de segurança: os dados vivem só neste browser
 $("btnExport").addEventListener("click",()=>{

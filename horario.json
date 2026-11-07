@@ -1,0 +1,149 @@
+[
+ {
+  "dia": 1,
+  "disciplina": "História",
+  "inicio": "08:50",
+  "fim": "10:30",
+  "sala": ""
+ },
+ {
+  "dia": 1,
+  "disciplina": "Inglês",
+  "inicio": "10:50",
+  "fim": "12:30",
+  "sala": ""
+ },
+ {
+  "dia": 1,
+  "disciplina": "Matemática",
+  "inicio": "12:40",
+  "fim": "13:30",
+  "sala": ""
+ },
+ {
+  "dia": 1,
+  "disciplina": "Físico-Química",
+  "inicio": "14:30",
+  "fim": "16:10",
+  "sala": ""
+ },
+ {
+  "dia": 2,
+  "disciplina": "Educação Visual",
+  "inicio": "08:50",
+  "fim": "10:30",
+  "sala": ""
+ },
+ {
+  "dia": 2,
+  "disciplina": "Português",
+  "inicio": "10:50",
+  "fim": "12:30",
+  "sala": ""
+ },
+ {
+  "dia": 2,
+  "disciplina": "Ciências Naturais",
+  "inicio": "12:40",
+  "fim": "13:30",
+  "sala": ""
+ },
+ {
+  "dia": 2,
+  "disciplina": "Espanhol",
+  "inicio": "14:30",
+  "fim": "16:10",
+  "sala": ""
+ },
+ {
+  "dia": 3,
+  "disciplina": "TIC",
+  "inicio": "08:50",
+  "fim": "09:40",
+  "sala": ""
+ },
+ {
+  "dia": 3,
+  "disciplina": "Físico-Química",
+  "inicio": "09:40",
+  "fim": "10:30",
+  "sala": ""
+ },
+ {
+  "dia": 3,
+  "disciplina": "Educação Física",
+  "inicio": "10:50",
+  "fim": "12:30",
+  "sala": ""
+ },
+ {
+  "dia": 3,
+  "disciplina": "Português",
+  "inicio": "12:40",
+  "fim": "13:30",
+  "sala": ""
+ },
+ {
+  "dia": 4,
+  "disciplina": "Matemática",
+  "inicio": "08:50",
+  "fim": "10:30",
+  "sala": ""
+ },
+ {
+  "dia": 4,
+  "disciplina": "Português",
+  "inicio": "10:50",
+  "fim": "12:30",
+  "sala": ""
+ },
+ {
+  "dia": 4,
+  "disciplina": "Ad",
+  "inicio": "12:40",
+  "fim": "13:30",
+  "sala": ""
+ },
+ {
+  "dia": 4,
+  "disciplina": "Geografia",
+  "inicio": "14:30",
+  "fim": "16:10",
+  "sala": ""
+ },
+ {
+  "dia": 5,
+  "disciplina": "Inglês",
+  "inicio": "08:50",
+  "fim": "09:40",
+  "sala": ""
+ },
+ {
+  "dia": 5,
+  "disciplina": "Educação Física",
+  "inicio": "09:40",
+  "fim": "10:30",
+  "sala": ""
+ },
+ {
+  "dia": 5,
+  "disciplina": "Ciências Naturais",
+  "inicio": "10:50",
+  "fim": "12:30",
+  "sala": ""
+ },
+ {
+  "dia": 5,
+  "disciplina": "Cidadania e Desenvolvimento",
+  "inicio": "12:40",
+  "fim": "13:30",
+  "sala": ""
+ },
+ {
+  "dia": 5,
+  "disciplina": "Matemática",
+  "inicio": "14:30",
+  "fim": "16:10",
+  "sala": ""
+ }
+]
