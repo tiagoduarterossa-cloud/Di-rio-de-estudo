@@ -32,6 +32,7 @@ h2{font:600 1.15rem/1.2 var(--f-display);margin:0}
 .tabs button{white-space:nowrap;flex:none}
 .pill{font:600 .75rem var(--f-mono);border-radius:999px;padding:2px 8px;background:var(--line);color:var(--ink);white-space:nowrap}
 .pill.soon{background:var(--mark);color:var(--mark-ink)}
+h2.editar{color:var(--accent)}
 h3{font:600 .8rem var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
 .dias{display:grid;gap:16px}
 .dia{display:grid;gap:4px}
@@ -86,6 +87,13 @@ ul.list li:first-child{border-top:0}
   </nav>
   <p class="status" id="status"></p>
 
+  <form class="panel" id="formLogin" hidden>
+    <h2>Entrar</h2>
+    <p class="notas">Escreve o teu email. Recebes um link: carrega nele e a app abre com os teus dados. No telemóvel e no PC usa o mesmo email.</p>
+    <label for="lEmail">Email<input type="email" id="lEmail" required autocomplete="email"></label>
+    <button class="btn" type="submit" id="lBtn">Enviar link</button>
+  </form>
+
   <section id="hoje">
     <div class="panel">
       <h2>A seguir</h2>
@@ -110,7 +118,7 @@ ul.list li:first-child{border-top:0}
         <label for="sPag">Páginas (opcional)<input id="sPag" placeholder="Ex.: 88–102"></label>
       </div>
       <label for="sNotas">Notas, dúvidas, o que ficou por perceber<textarea id="sNotas"></textarea></label>
-      <button class="btn" type="submit">Guardar</button>
+      <div class="chips"><button class="btn" type="submit">Guardar</button><button class="btn ghost" type="button" data-cancel="formSessao" hidden>Cancelar</button></div>
     </form>
   </section>
 
@@ -125,7 +133,7 @@ ul.list li:first-child{border-top:0}
         <label for="tTipo">Tipo<select id="tTipo"><option>Teste</option><option>Trabalho</option><option>Apresentação</option><option>Ficha</option></select></label>
         <label for="tMateria">Matéria (opcional)<input id="tMateria" placeholder="Ex.: Cap. 2 e 3"></label>
       </div>
-      <button class="btn" type="submit">Adicionar</button>
+      <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formTeste" hidden>Cancelar</button></div>
     </form>
     <div class="panel">
       <h2>Calendário de avaliações</h2>
@@ -145,7 +153,7 @@ ul.list li:first-child{border-top:0}
         <label for="aFim">Acaba<input type="time" id="aFim" required value="09:05"></label>
       </div>
       <label for="aSala">Sala ou professor (opcional)<input id="aSala"></label>
-      <button class="btn" type="submit">Adicionar</button>
+      <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formAula" hidden>Cancelar</button></div>
     </form>
     <div class="panel"><h2>O meu horário</h2><div id="horList" class="dias"></div></div>
   </section>
@@ -158,7 +166,7 @@ ul.list li:first-child{border-top:0}
         <label for="mDisc">Disciplina<input id="mDisc" required placeholder="Ex.: Matemática"></label>
       </div>
       <label for="mNotas">Notas (editora, edição, capítulos do período…)<input id="mNotas"></label>
-      <button class="btn" type="submit">Adicionar</button>
+      <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formManual" hidden>Cancelar</button></div>
     </form>
     <div class="panel">
       <h2>Os meus manuais</h2>
@@ -166,8 +174,9 @@ ul.list li:first-child{border-top:0}
     </div>
   <div class="panel">
       <h2>Cópia de segurança</h2>
-      <p class="notas">Os dados ficam guardados só neste browser. Descarrega uma cópia de vez em quando, e usa-a para passar tudo para outro computador.</p>
+      <p class="notas" id="contaInfo">Os dados ficam guardados só neste browser. Descarrega uma cópia de vez em quando, e usa-a para passar tudo para outro computador.</p>
       <div class="chips"><button class="btn ghost" type="button" id="btnExport">Descarregar cópia</button>
+      <button class="btn ghost" type="button" id="btnSair" hidden>Sair da conta</button>
       <label class="btn ghost" for="fImport" style="display:inline-block">Importar cópia<input type="file" id="fImport" accept="application/json" hidden></label></div>
     </div>
   </section>
@@ -183,10 +192,12 @@ ul.list li:first-child{border-top:0}
   </section>
 </div>
 
+<script src="config.js"></script>
 <script src="db.js"></script>
 <script>
 const INTERVALOS=[1,7,30];
 let db=null, manuais=[], sessoes=[], testes=[], horario=[], podeEscrever=true, confirmar=null;
+const editando={}; // formulário -> id do registo que está a ser editado
 const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const $=id=>document.getElementById(id);
 const hojeISO=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
@@ -198,13 +209,38 @@ const rotulo=s=>{const m=manuais.find(x=>x.id===s.manualId);return m?`${m.discip
 const norm=s=>String(s||"").trim().toLowerCase();
 const diasAte=iso=>Math.round((new Date(iso+"T12:00:00")-new Date(hojeISO()+"T12:00:00"))/864e5);
 const quando=n=>n===0?"hoje":n===1?"amanhã":`daqui a ${n} dias`;
+const baseRev=s=>s.base||s.data; // depois de "Não me lembrei" as revisões contam a partir desse dia
 const proxTeste=disc=>testes.filter(t=>norm(t.disciplina)===norm(disc)&&t.data>=hojeISO()).sort((a,b)=>a.data.localeCompare(b.data))[0];
 function status(t,err){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err)}
 
-document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
-  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
-  ["hoje","testes","horario","manuais","hist"].forEach(id=>$(id).hidden=id!==b.dataset.tab);
-}));
+function abrirTab(nome){
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===nome));
+  ["hoje","testes","horario","manuais","hist"].forEach(id=>$(id).hidden=id!==nome);
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>abrirTab(b.dataset.tab)));
+
+// Editar: preenche o formulário com o registo e o botão passa a "Guardar alterações"
+function editar(formId,tab,id,campos){
+  abrirTab(tab);
+  for(const k in campos)$(k).value=campos[k]??"";
+  editando[formId]=id;
+  const f=$(formId),b=f.querySelector("button[type=submit]");
+  b.dataset.texto??=b.textContent; b.textContent="Guardar alterações";
+  f.querySelector("[data-cancel]").hidden=false; f.querySelector("h2").classList.add("editar");
+  f.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function acabarEdicao(formId){
+  if(!editando[formId])return;
+  delete editando[formId];
+  const f=$(formId),b=f.querySelector("button[type=submit]");
+  b.textContent=b.dataset.texto; f.querySelector("[data-cancel]").hidden=true; f.querySelector("h2").classList.remove("editar");
+}
+// Grava: cria um registo novo ou altera o que está em edição
+async function gravar(formId,col,d){
+  const id=editando[formId];
+  if(id){await db.doc(col+"/"+id).update(d);acabarEdicao(formId);return "editado"}
+  await db.collection(col).add(d);return "novo";
+}
 $("sData").value=hojeISO();
 
 function render(){
@@ -220,18 +256,18 @@ function render(){
     const n=sessoes.filter(s=>s.manualId===m.id).length;
     const del=confirmar===m.id?`<button class="btn small ghost danger" data-delm="${m.id}">Confirmar remoção</button>`:`<button class="btn small ghost" data-askm="${m.id}">Remover</button>`;
     return `<li><div class="top"><span class="tag">${esc(m.disciplina)}</span><span class="date">${n} ${n===1?"sessão":"sessões"}</span></div>
-      <span class="materia">${esc(m.titulo)}</span>${m.notas?`<span class="notas">${esc(m.notas)}</span>`:""}<div>${del}</div></li>`}).join("")
+      <span class="materia">${esc(m.titulo)}</span>${m.notas?`<span class="notas">${esc(m.notas)}</span>`:""}<div class="chips"><button class="btn small ghost" data-edm="${m.id}">Editar</button>${del}</div></li>`}).join("")
     :`<p class="empty">Ainda não há manuais. Adiciona o primeiro acima, um por disciplina.</p>`;
 
   // para rever
   const hoje=hojeISO(), due=[];
-  sessoes.forEach(s=>INTERVALOS.forEach(k=>{const r=s.revisoes||{};const dt=somaDias(s.data,k);if(!r[k]&&dt<=hoje)due.push({s,k,dt})}));
+  sessoes.forEach(s=>INTERVALOS.forEach(k=>{const r=s.revisoes||{};const dt=somaDias(baseRev(s),k);if(!r[k]&&dt<=hoje)due.push({s,k,dt})}));
   due.forEach(x=>{x.t=proxTeste(discOf(x.s));x.td=x.t?diasAte(x.t.data):999});
   due.sort((a,b)=>a.td-b.td||a.dt.localeCompare(b.dt));
   $("dueCount").textContent=due.length?`${due.length}`:"";
   $("dueList").innerHTML=due.length?due.map(({s,k,dt,t,td})=>`<li class="due"><div class="top"><span class="tag">${esc(rotulo(s))}</span><span class="date">estudado ${fmt(s.data)} · revisão ${k}d${dt<hoje?" · atrasada":""}${t&&td<=14?` · ${esc(norm(t.tipo||"teste"))} ${quando(td)}`:""}</span></div>
       <span><span class="materia">${esc(s.materia)}</span></span>
-      <div><button class="btn small" data-rev="${s.id}" data-k="${k}">Revi sem olhar</button></div></li>`).join("")
+      <div class="chips"><button class="btn small" data-rev="${s.id}" data-k="${k}">Revi sem olhar</button><button class="btn small ghost" data-falhei="${s.id}">Não me lembrei</button></div></li>`).join("")
     :`<p class="empty">Nada para rever hoje. As revisões aparecem aqui 1, 7 e 30 dias depois de cada matéria que registares.</p>`;
 
   // histórico
@@ -239,15 +275,15 @@ function render(){
   $("histCount").textContent=`${lista.length} ${lista.length===1?"registo":"registos"}`;
   $("histList").innerHTML=lista.length?lista.map(s=>{
     const r=s.revisoes||{};
-    const chips=INTERVALOS.map(k=>{const dt=somaDias(s.data,k);const c=r[k]?"done":(dt<=hoje?"late":"");return `<span class="chip ${c}">${k}d ${r[k]?"✓":fmt(dt).slice(0,5)}</span>`}).join("");
+    const chips=INTERVALOS.map(k=>{const dt=somaDias(baseRev(s),k);const c=r[k]?"done":(dt<=hoje?"late":"");return `<span class="chip ${c}">${k}d ${r[k]?"✓":fmt(dt).slice(0,5)}</span>`}).join("");
     const del=confirmar===s.id?`<button class="btn small ghost danger" data-dels="${s.id}">Confirmar</button>`:`<button class="btn small ghost" data-asks="${s.id}">Apagar</button>`;
     return `<li><div class="top"><span class="tag">${esc(rotulo(s))}${s.origem?` · ${esc(s.origem)}`:""}</span><span class="date">${fmt(s.data)}</span></div>
       <span class="materia">${esc(s.materia)}${s.paginas?` <span class="date">p. ${esc(s.paginas)}</span>`:""}</span>
-      ${s.notas?`<span class="notas">${esc(s.notas)}</span>`:""}<div class="top"><div class="chips">${chips}</div>${del}</div></li>`}).join("")
+      ${s.notas?`<span class="notas">${esc(s.notas)}</span>`:""}${s.falhas?`<span class="date">recomeçou ${fmt(s.base)} · ${s.falhas} ${s.falhas===1?"vez":"vezes"} sem me lembrar</span>`:""}<div class="top"><div class="chips">${chips}</div><div class="chips"><button class="btn small ghost" data-eds="${s.id}">Editar</button>${del}</div></div></li>`}).join("")
     :`<p class="empty">Sem registos ainda. Cada matéria que guardares no separador Hoje aparece aqui, por data.</p>`;
 
   renderAgenda();
-  document.querySelectorAll("form button[type=submit]").forEach(b=>b.disabled=!db||!podeEscrever);
+  document.querySelectorAll("form:not(#formLogin) button[type=submit]").forEach(b=>b.disabled=!db||!podeEscrever);
 }
 
 function renderAgenda(){
@@ -257,9 +293,9 @@ function renderAgenda(){
   const item=(t,comBotao)=>{
     const n=diasAte(t.data);
     const pill=n<0?"":`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
-    const b=!comBotao?"":(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
+    const b=!comBotao?"":`<button class="btn small ghost" data-edt="${t.id}">Editar</button>`+(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
     return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")}</span><span class="date">${fmt(t.data)}</span></div>
-      <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${b?`<div>${b}</div>`:""}</li>`};
+      <div class="top"><span class="materia">${esc(t.materia||"Matéria por definir")}</span>${pill}</div>${b?`<div class="chips">${b}</div>`:""}</li>`};
   const prox=fut.filter(t=>diasAte(t.data)<=14);
   $("nextList").innerHTML=prox.length?prox.map(t=>item(t,false)).join(""):`<p class="empty">Sem testes nem trabalhos nas próximas duas semanas.${testes.length?"":" Adiciona-os no separador Testes."}</p>`;
   $("testList").innerHTML=(fut.length||pass.length)?fut.map(t=>item(t,true)).join("")+(pass.length?`<li><h3>Já passaram</h3></li>`+pass.map(t=>item(t,true)).join(""):"")
@@ -267,7 +303,7 @@ function renderAgenda(){
 
   const porDia=[1,2,3,4,5].map(d=>({d,aulas:horario.filter(a=>+a.dia===d).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)))}));
   $("horList").innerHTML=horario.length?porDia.filter(x=>x.aulas.length).map(x=>`<div class="dia"><h3>${DIAS[x.d]}</h3><ul class="list">${x.aulas.map(a=>{
-      const b=confirmar===a.id?`<button class="btn small ghost danger" data-delh="${a.id}">Confirmar</button>`:`<button class="btn small ghost" data-askh="${a.id}">Apagar</button>`;
+      const b=`<span class="chips"><button class="btn small ghost" data-edh="${a.id}">Editar</button>`+(confirmar===a.id?`<button class="btn small ghost danger" data-delh="${a.id}">Confirmar</button>`:`<button class="btn small ghost" data-askh="${a.id}">Apagar</button>`)+`</span>`;
       return `<li><div class="top"><span><span class="date">${esc(a.inicio)}–${esc(a.fim)}</span> <span class="materia">${esc(a.disciplina)}</span>${a.sala?` <span class="notas">${esc(a.sala)}</span>`:""}</span>${b}</div></li>`}).join("")}</ul></div>`).join("")
     :`<p class="empty">Ainda não há aulas. Adiciona-as acima, dia a dia. A hora de início passa sozinha para o fim da aula anterior.</p>`;
 
@@ -285,51 +321,78 @@ document.addEventListener("click",async e=>{
     if(t.dataset.delh){await db.doc("horario/"+t.dataset.delh).delete();confirmar=null;status("Aula apagada.")}
     if(t.dataset.delm){await db.doc("manuais/"+t.dataset.delm).delete();confirmar=null;status("Manual removido. Os registos dele ficam no histórico.")}
     if(t.dataset.dels){await db.doc("sessoes/"+t.dataset.dels).delete();confirmar=null;status("Registo apagado.")}
+    if(t.dataset.cancel){acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
+    if(t.dataset.edm){const m=manuais.find(x=>x.id===t.dataset.edm);editar("formManual","manuais",m.id,{mTitulo:m.titulo,mDisc:m.disciplina,mNotas:m.notas});return}
+    if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
+    if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia});return}
+    if(t.dataset.edh){const a=horario.find(y=>y.id===t.dataset.edh);editar("formAula","horario",a.id,{aDia:a.dia,aDisc:a.disciplina,aIni:a.inicio,aFim:a.fim,aSala:a.sala});return}
+    if(t.dataset.falhei){const s=sessoes.find(x=>x.id===t.dataset.falhei);t.disabled=true;
+      await db.doc("sessoes/"+s.id).update({base:hojeISO(),falhas:(s.falhas||0)+1,revisoes:{"1":false,"7":false,"30":false}});
+      status("Sem stress: volta a aparecer amanhã. Relê a matéria hoje.")}
     if(t.dataset.rev){t.disabled=true;await db.doc("sessoes/"+t.dataset.rev).update({revisoes:{[t.dataset.k]:true}});status("Revisão marcada.")}
   }catch(err){status("Não foi possível guardar. Tenta outra vez.",true);t.disabled=false}
 });
 
 $("formManual").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
-  const d={titulo:$("mTitulo").value.trim(),disciplina:$("mDisc").value.trim(),notas:$("mNotas").value.trim(),criado:new Date().toISOString()};
+  const d={titulo:$("mTitulo").value.trim(),disciplina:$("mDisc").value.trim(),notas:$("mNotas").value.trim()};
   if(!d.titulo||!d.disciplina)return;
-  try{await db.collection("manuais").add(d);e.target.reset();status("Manual adicionado.")}
+  if(!editando.formManual)d.criado=new Date().toISOString();
+  try{const r=await gravar("formManual","manuais",d);e.target.reset();status(r==="editado"?"Manual alterado.":"Manual adicionado.")}
   catch(err){status(err&&err.code==="quota_exceeded"?"A base de dados está cheia.":"Não foi possível guardar o manual ("+((err&&err.code)||"erro")+").",true)}
 });
 $("formSessao").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
-  const d={data:$("sData").value||hojeISO(),disciplina:$("sDisc").value.trim(),manualId:$("sManual").value,materia:$("sMateria").value.trim(),paginas:$("sPag").value.trim(),origem:$("sOrigem").value,notas:$("sNotas").value.trim(),revisoes:{"1":false,"7":false,"30":false},criado:new Date().toISOString()};
+  const d={data:$("sData").value||hojeISO(),disciplina:$("sDisc").value.trim(),manualId:$("sManual").value,materia:$("sMateria").value.trim(),paginas:$("sPag").value.trim(),origem:$("sOrigem").value,notas:$("sNotas").value.trim()};
   if(!d.materia||!d.disciplina)return;
-  try{await db.collection("sessoes").add(d);["sMateria","sPag","sNotas"].forEach(id=>$(id).value="");status("Guardado. Primeira revisão amanhã.")}
+  if(!editando.formSessao)Object.assign(d,{revisoes:{"1":false,"7":false,"30":false},criado:new Date().toISOString()}); // a editar, as revisões ficam como estavam
+  try{const r=await gravar("formSessao","sessoes",d);["sMateria","sPag","sNotas"].forEach(id=>$(id).value="");$("sData").value=hojeISO();status(r==="editado"?"Registo alterado.":"Guardado. Primeira revisão amanhã.")}
   catch(err){status("Não foi possível guardar o registo ("+((err&&err.code)||"erro")+").",true)}
 });
 $("hFiltro").addEventListener("change",render);
 $("formTeste").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
-  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim(),criado:new Date().toISOString()};
+  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim()};
   if(!d.data||!d.disciplina)return;
-  try{await db.collection("testes").add(d);["tDisc","tMateria"].forEach(id=>$(id).value="");status("Avaliação adicionada.")}
+  if(!editando.formTeste)d.criado=new Date().toISOString();
+  try{const r=await gravar("formTeste","testes",d);["tDisc","tMateria"].forEach(id=>$(id).value="");status(r==="editado"?"Avaliação alterada.":"Avaliação adicionada.")}
   catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
 });
 $("formAula").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
   const d={dia:+$("aDia").value,disciplina:$("aDisc").value.trim(),inicio:$("aIni").value,fim:$("aFim").value,sala:$("aSala").value.trim()};
   if(!d.disciplina||!d.inicio||!d.fim)return;
-  try{await db.collection("horario").add(d);$("aDisc").value="";$("aSala").value="";$("aIni").value=d.fim;$("aDisc").focus();status(`Aula de ${d.disciplina} adicionada a ${DIAS[d.dia].toLowerCase()}.`)}
+  try{const r=await gravar("formAula","horario",d);$("aDisc").value="";$("aSala").value="";$("aIni").value=d.fim;$("aDisc").focus();status(r==="editado"?`Aula de ${d.disciplina} alterada.`:`Aula de ${d.disciplina} adicionada a ${DIAS[d.dia].toLowerCase()}.`)}
   catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
 });
 $("sManual").addEventListener("change",()=>{const m=manuais.find(x=>x.id===$("sManual").value);if(m)$("sDisc").value=m.disciplina});
 
 render();
-(()=>{
-  db=LocalDB;
+// Formulário de entrada (só aparece quando o config.js tem os dados do Supabase)
+function pedirLogin(enviar){
+  $("formLogin").hidden=false;
+  status("Entra com o teu email para veres os teus dados.");
+  $("formLogin").onsubmit=async e=>{
+    e.preventDefault();$("lBtn").disabled=true;
+    try{await enviar($("lEmail").value.trim());status("Link enviado. Abre o email e carrega no link (vê também o spam).")}
+    catch(err){status("Não consegui enviar o link: "+(err.message||"erro"),true)}
+    $("lBtn").disabled=false;
+  };
+}
+abrirBD({pedirLogin}).then(base=>{
+  db=base;
+  $("formLogin").hidden=true;
+  if(db.tipo==="nuvem"){
+    $("contaInfo").textContent=`Os teus dados estão guardados online, na conta ${db.email}. Podes abrir a app no telemóvel e no PC com o mesmo email. A cópia continua a dar jeito de vez em quando.`;
+    $("btnSair").hidden=false;$("btnSair").onclick=()=>db.sair();
+  }
   const ord=(a,b)=>(a.disciplina+a.titulo).localeCompare(b.disciplina+b.titulo,"pt");
   db.collection("manuais").onSnapshot(s=>{manuais=s.docs.map(d=>({id:d.id,...d.data()})).sort(ord);render()});
   db.collection("testes").onSnapshot(s=>{testes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   status("");
-})();
+}).catch(err=>status(err.message||"Não consegui abrir os dados.",true));
 
 // Cópia de segurança: os dados vivem só neste browser
 $("btnExport").addEventListener("click",()=>{
@@ -339,7 +402,7 @@ $("btnExport").addEventListener("click",()=>{
 });
 $("fImport").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
-  try{db.importJSON(await f.text());status("Dados importados.")}catch(err){status("Esse ficheiro não é uma cópia do Diário de Estudo.",true)}
+  try{await db.importJSON(await f.text());status("Dados importados.")}catch(err){status("Esse ficheiro não é uma cópia do Diário de Estudo.",true)}
   e.target.value="";
 });
 </script>
