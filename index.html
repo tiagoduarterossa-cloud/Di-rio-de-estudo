@@ -48,7 +48,12 @@ section{display:grid;gap:16px}
 label{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
 input,select,textarea{font:16px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;box-sizing:border-box}
 textarea{min-height:70px;resize:vertical}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.row>label{min-width:0}
+/* O Safari (iPad/iPhone) desenha data e hora à sua maneira e ignora a largura: obriga-os a portar-se como os outros campos */
+input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:42px;text-align:left;line-height:1.3}
+input::-webkit-date-and-time-value{text-align:left;margin:0}
+input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.8)}
 @media (max-width:460px){.row{grid-template-columns:1fr}}
 .btn{background:var(--accent);color:var(--surface);border:0;border-radius:6px;padding:10px 14px;font:600 .95rem var(--f-body);cursor:pointer;justify-self:start}
 .btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
@@ -238,7 +243,10 @@ details[open].panel summary::after{content:"▴"}
         <label for="tTipo">Tipo<select id="tTipo"><option>Teste</option><option>Trabalho</option><option>Apresentação</option><option>Ficha</option></select></label>
         <label for="tMateria">Matéria (opcional)<input id="tMateria" placeholder="Ex.: Cap. 2 e 3"></label>
       </div>
-      <label for="tNota">Nota em % (depois do teste)<input type="number" id="tNota" min="0" max="100" step="1" inputmode="numeric" placeholder="Ex.: 78"></label>
+      <div class="row">
+        <label for="tNota">Nota (depois do teste)<select id="tNota"><option value="">Ainda sem nota</option><option>Fraco</option><option>Insuficiente</option><option>Suficiente</option><option>Bom</option><option>Muito Bom</option><option>Excelente</option><option value="%">Percentagem…</option></select></label>
+        <label for="tPct" id="tPctLab" hidden>Percentagem<input type="number" id="tPct" min="0" max="100" step="1" inputmode="numeric" placeholder="Ex.: 78"></label>
+      </div>
       <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formTeste" hidden>Cancelar</button></div>
     </form>
     <div class="panel">
@@ -548,7 +556,7 @@ let calMes=hojeISO().slice(0,7), calSel=null;
 const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 function eventosDoDia(d){
   const ev=[];
-  testes.filter(t=>t.data===d).forEach(t=>ev.push({c:"teste",txt:`${t.tipo||"Teste"} de ${t.disciplina}${t.nota!=null?` · ${t.nota}%`:""}`}));
+  testes.filter(t=>t.data===d).forEach(t=>ev.push({c:"teste",txt:`${t.tipo||"Teste"} de ${t.disciplina}${t.nota!=null?` · ${notaTexto(t.nota)}`:""}`}));
   testes.filter(t=>t.data>d).forEach(t=>planoEstudo(t).filter(p=>p.dt===d).forEach(p=>ev.push({c:"estudo",txt:`${verbo(t)} ${norm(t.tipo||"teste")} de ${t.disciplina}${p.feito?" ✓":""}`})));
   faltas.filter(f=>f.data===d).forEach(f=>ev.push({c:"falta",txt:`Faltaste a ${f.disciplina}${f.compensada?" · compensada":""}`}));
   sessoes.filter(s=>s.data===d).forEach(s=>ev.push({c:"reg",txt:`Estudaste ${discOf(s)}: ${s.materia}`}));
@@ -568,14 +576,25 @@ function renderCalendario(){
   $("calDia").innerHTML=calSel?(ev.length?ev.map(e=>`<li><div class="top"><span class="materia"><span class="pt ${e.c}"></span> ${esc(e.txt)}</span><span class="date">${fmt(calSel)}</span></div></li>`).join(""):`<li><span class="notas">Nada em ${fmt(calSel)}.</span></li>`):"";
 }
 
+// Notas: menção (Fraco … Excelente) ou percentagem. Para médias, cada menção vale um valor aproximado.
+const MENCOES={"Fraco":10,"Insuficiente":35,"Suficiente":60,"Bom":80,"Muito Bom":92,"Excelente":98};
+const notaValor=n=>typeof n==="number"?n:(MENCOES[n]??null);
+const notaTexto=n=>typeof n==="number"?`${n}%`:String(n);
+const mencaoDe=v=>v<20?"Fraco":v<50?"Insuficiente":v<70?"Suficiente":v<90?"Bom":v<95?"Muito Bom":"Excelente";
+const notaClasse=n=>{const v=notaValor(n);return v==null?"":v>=70?"boa":v<50?"ma":""};
+const notaPill=n=>`<span class="pill nota ${notaClasse(n)}">${esc(notaTexto(n))}</span>`;
+function mostrarPct(){$("tPctLab").hidden=$("tNota").value!=="%"}
+
 function renderNotas(){
   const comNota=testes.filter(t=>t.nota!=null).sort((a,b)=>b.data.localeCompare(a.data));
   if(!comNota.length){$("notasList").innerHTML=`<p class="empty">Quando tiveres a nota de um teste, carrega em Editar nesse teste e escreve-a.</p>`;return}
   const estudoAntes=t=>sessoes.filter(s=>norm(discOf(s))===norm(t.disciplina)&&s.data<t.data&&s.data>=somaDias(t.data,-14)).length;
   const porDisc={};comNota.forEach(t=>(porDisc[t.disciplina]||=[]).push(t.nota));
-  const medias=Object.entries(porDisc).sort((a,b)=>a[0].localeCompare(b[0],"pt")).map(([d,n])=>`<span class="chip">${esc(d)} ${Math.round(n.reduce((a,b)=>a+b,0)/n.length)}%</span>`).join("");
+  const medias=Object.entries(porDisc).sort((a,b)=>a[0].localeCompare(b[0],"pt")).map(([d,n])=>{
+    const m=Math.round(n.map(notaValor).reduce((a,b)=>a+b,0)/n.length), soPct=n.every(x=>typeof x==="number");
+    return `<span class="chip">${esc(d)}: ${mencaoDe(m)}${soPct?` (${m}%)`:""}</span>`}).join("");
   $("notasList").innerHTML=`<div class="chips">${medias}</div><ul class="list">${comNota.map(t=>{const e=estudoAntes(t);
-    return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${fmt(t.data)}</span><span class="pill nota ${t.nota>=70?"boa":t.nota<50?"ma":""}">${t.nota}%</span></div>
+    return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${fmt(t.data)}</span>${notaPill(t.nota)}</div>
       <span class="notas">${e?`Estudaste ${e} ${e===1?"vez":"vezes"} nas duas semanas antes.`:"Não registaste estudo nas duas semanas antes."}</span></li>`}).join("")}</ul>`;
 }
 
@@ -829,7 +848,7 @@ function renderAgenda(){
   const pass=testes.filter(t=>t.data<hoje).sort((a,b)=>b.data.localeCompare(a.data));
   const item=(t,comBotao)=>{
     const n=diasAte(t.data);
-    const pill=t.nota!=null?`<span class="pill nota ${t.nota>=70?"boa":t.nota<50?"ma":""}">${t.nota}%</span>`
+    const pill=t.nota!=null?notaPill(t.nota)
       :n<0?(comBotao?`<span class="date">sem nota · Editar para a pôr</span>`:""):`<span class="pill${n<=7?" soon":""}">${quando(n)}</span>`;
     const b=!comBotao?"":`<button class="btn small ghost" data-edt="${t.id}">Editar</button>`+(confirmar===t.id?`<button class="btn small ghost danger" data-delt="${t.id}">Confirmar</button>`:`<button class="btn small ghost" data-askt="${t.id}">Apagar</button>`);
     return `<li><div class="top"><span class="tag">${esc(t.disciplina)} · ${esc(t.tipo||"Teste")}</span><span class="date">${fmt(t.data)}</span></div>
@@ -879,10 +898,10 @@ document.addEventListener("click",async e=>{
     if(t.dataset.mes){const [a,m]=calMes.split("-").map(Number),d=new Date(a,m-1+ +t.dataset.mes,1);calMes=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;calSel=null;renderCalendario();return}
     if(t.dataset.dia){calSel=calSel===t.dataset.dia?null:t.dataset.dia;renderCalendario();return}
     if(t.dataset.tirafoto){fotosTirar.add(t.dataset.tirafoto);t.closest(".foto-ed").remove();status("A foto sai quando carregares em Guardar alterações.");return}
-    if(t.dataset.cancel){fotosTirar.clear();acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();$("sFotosPrev").innerHTML="";if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
+    if(t.dataset.cancel){fotosTirar.clear();setTimeout(mostrarPct);acabarEdicao(t.dataset.cancel);$(t.dataset.cancel).reset();$("sFotosPrev").innerHTML="";if(t.dataset.cancel==="formSessao")$("sData").value=hojeISO();return}
     if(t.dataset.edm){const m=manuais.find(x=>x.id===t.dataset.edm);editar("formManual","manuais",m.id,{mTitulo:m.titulo,mDisc:m.disciplina,mNotas:m.notas});return}
     if(t.dataset.eds){const s=sessoes.find(x=>x.id===t.dataset.eds);$("sFotos").value="";fotosTirar.clear();$("sFotosPrev").innerHTML=(s.fotos||[]).map(id=>`<span class="foto-ed"><img data-foto="${esc(id)}" alt="Foto do caderno"><button type="button" class="tirar" data-tirafoto="${esc(id)}" aria-label="Tirar esta foto">×</button></span>`).join("");carregarFotos();editar("formSessao","hoje",s.id,{sData:s.data,sDisc:s.disciplina||discOf(s),sManual:s.manualId,sMateria:s.materia,sPag:s.paginas,sOrigem:s.origem||"Estudo em casa",sNotas:s.notas});return}
-    if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia,tNota:x.nota??""});return}
+    if(t.dataset.edt){const x=testes.find(y=>y.id===t.dataset.edt);editar("formTeste","testes",x.id,{tData:x.data,tDisc:x.disciplina,tTipo:x.tipo||"Teste",tMateria:x.materia,tNota:typeof x.nota==="number"?"%":(x.nota??""),tPct:typeof x.nota==="number"?x.nota:""});mostrarPct();return}
     if(t.dataset.edh){const a=horario.find(y=>y.id===t.dataset.edh);editar("formAula","horario",a.id,{aDia:a.dia,aDisc:a.disciplina,aIni:a.inicio,aFim:a.fim,aSala:a.sala});return}
     if(t.dataset.falhei){const s=sessoes.find(x=>x.id===t.dataset.falhei);t.disabled=true;
       await db.doc("sessoes/"+s.id).update({base:hojeISO(),falhas:(s.falhas||0)+1,revisoes:{"1":false,"7":false,"30":false}});
@@ -940,6 +959,7 @@ $("formSessao").addEventListener("submit",async e=>{
   btn.disabled=false;
 });
 $("hFiltro").addEventListener("change",render);
+$("tNota").addEventListener("change",()=>{mostrarPct();if($("tNota").value==="%")$("tPct").focus()});
 $("rFiltro").addEventListener("change",renderResumos);
 $("btnPedido").addEventListener("click",async()=>{
   try{await navigator.clipboard.writeText(PEDIDO);status("Pedido copiado. Cola-o no Claude e junta as fotos.")}
@@ -984,11 +1004,12 @@ $("sFotos").addEventListener("change",()=>{
 });
 $("formTeste").addEventListener("submit",async e=>{
   e.preventDefault();if(!db)return;
-  const nota=$("tNota").value.trim();
-  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim(),nota:nota===""?null:Math.max(0,Math.min(100,Math.round(+nota)))};
+  const sel=$("tNota").value,pct=$("tPct").value.trim();
+  const nota=sel===""?null:sel==="%"?(pct===""?null:Math.max(0,Math.min(100,Math.round(+pct)))):sel;
+  const d={data:$("tData").value,disciplina:$("tDisc").value.trim(),tipo:$("tTipo").value,materia:$("tMateria").value.trim(),nota};
   if(!d.data||!d.disciplina)return;
   if(!editando.formTeste)d.criado=new Date().toISOString();
-  try{const r=await gravar("formTeste","testes",d);["tDisc","tMateria","tNota"].forEach(id=>$(id).value="");status(r==="editado"?"Avaliação alterada.":"Avaliação adicionada.")}
+  try{const r=await gravar("formTeste","testes",d);["tDisc","tMateria","tNota","tPct"].forEach(id=>$(id).value="");mostrarPct();status(r==="editado"?"Avaliação alterada.":"Avaliação adicionada.")}
   catch(err){status("Não foi possível guardar ("+((err&&err.code)||"erro")+").",true)}
 });
 $("formAula").addEventListener("submit",async e=>{

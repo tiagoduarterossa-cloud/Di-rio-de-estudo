@@ -36,7 +36,7 @@ Cada resumo tem:
 Os resultados ficam guardados. O `resumos-prontos.json` tem resumos já convertidos, que se carregam no separador Resumos.
 
 ## Calendário e notas
-No separador Testes há um calendário do mês (testes, dias de estudo, faltas e dias em que estudaste; toca num dia para ver o que tem) e o painel "Notas e estudo": escreve a nota de cada teste (Editar) e vês quantas vezes estudaste essa disciplina nas duas semanas antes.
+No separador Testes há um calendário do mês (testes, dias de estudo, faltas e dias em que estudaste; toca num dia para ver o que tem) e o painel "Notas e estudo": escreve a nota de cada teste (Editar), em menção (Fraco a Excelente) ou em percentagem, e vês quantas vezes estudaste essa disciplina nas duas semanas antes.
 
 ## Onde ficam os dados
 Há duas maneiras, e a app escolhe sozinha pelo `config.js`:
