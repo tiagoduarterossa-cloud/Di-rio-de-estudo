@@ -116,6 +116,18 @@ details[open].panel summary::after{content:"▴"}
 .cal-leg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0}
 .cal-leg .pt{margin-left:6px}
 /* Resumos e quiz */
+.resumo-texto .r-h2{font:600 1.15rem var(--f-display);color:var(--ink);margin-top:10px;text-transform:none;letter-spacing:0}
+.resumo-texto h3{margin-top:6px}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;min-width:420px;font-size:.92rem}
+.tbl th,.tbl td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{background:var(--bg);color:var(--muted)}
+.opcoes.vf{grid-template-columns:1fr 1fr}
+.ligar{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center}
+.ligar span{font:600 .95rem var(--f-mono);color:var(--mark)}
+.ligar select.certa{border-color:var(--ok);outline:1px solid var(--ok)}
+.ligar select.errada{border-color:var(--danger);outline:1px solid var(--danger)}
+.ok{color:var(--ok)}.bad{color:var(--danger)}
 .resumo-texto{display:grid;gap:8px}
 .resumo-texto p,.resumo-texto ul{margin:0}
 .resumo-texto ul{padding-left:20px;display:grid;gap:4px}
@@ -242,13 +254,18 @@ details[open].panel summary::after{content:"▴"}
 
   <section id="resumos" hidden>
     <div class="panel" id="quiz" hidden></div>
+    <div class="panel" id="carregarRes" hidden>
+      <h2>Há resumos prontos para ti</h2>
+      <p class="notas" id="carregarResTxt"></p>
+      <button class="btn" type="button" id="btnRes">Carregar resumos</button>
+    </div>
     <details class="panel" id="novoResumo">
       <summary><h2>Novo resumo</h2></summary>
       <div class="sub-form">
-        <p class="notas"><b>1.</b> Copia o pedido e cola-o numa conversa nova no Claude. Junta as fotos do caderno ou do manual e diz a disciplina.</p>
+        <p class="notas"><b>1.</b> Copia o pedido e cola-o numa conversa nova no Claude. Junta as fotos dos apontamentos (ou cola um resumo antigo, para o converter).</p>
         <button class="btn ghost" type="button" id="btnPedido">Copiar pedido para o Claude</button>
         <p class="notas"><b>2.</b> Copia a resposta toda do Claude e cola-a aqui.</p>
-        <label for="rTexto">Resposta do Claude<textarea id="rTexto" rows="8" placeholder="# Título&#10;Disciplina: ...&#10;## Resumo&#10;...&#10;## Perguntas&#10;P: ..."></textarea></label>
+        <label for="rTexto">Resposta do Claude<textarea id="rTexto" rows="8" placeholder="{ &quot;titulo&quot;: ..., &quot;disciplina&quot;: ..., &quot;materia&quot;: ..., &quot;perguntas&quot;: [...] }"></textarea></label>
         <button class="btn" type="button" id="btnResumo">Guardar resumo</button>
       </div>
     </details>
@@ -562,33 +579,63 @@ function renderNotas(){
       <span class="notas">${e?`Estudaste ${e} ${e===1?"vez":"vezes"} nas duas semanas antes.`:"Não registaste estudo nas duas semanas antes."}</span></li>`}).join("")}</ul>`;
 }
 
-// ---------- Resumos com quiz e teste ----------
-// O resumo é feito no Claude (a partir das fotos) e colado aqui num formato simples:
-// "# Título", "Disciplina: X", "## Resumo" (texto), "## Perguntas" com "P:", opções "A) …" + "Certa: B", ou "R: resposta".
+// ---------- Resumos com quiz, teste por níveis e teste final ----------
+// O resumo é feito no Claude (a partir das fotos ou de um resumo antigo) e colado aqui em JSON:
+// { titulo, disciplina, tema, materia (texto com ##, -, **, tabelas |), perguntas:[...] }
+// Tipos de pergunta: escolha {opcoes, certa, explicacao} · vf {certa:true/false, explicacao}
+// · ligar {pares:[[esquerda,direita],...]} · escrita {r: resposta modelo}. Todas têm nivel 1, 2 ou 3 e podem ter final:true.
 let resumos=[], quiz=null;
-const PEDIDO=`Faz-me um resumo e perguntas de estudo a partir das fotos que junto. Sou aluno do 8.º ano, em Portugal. Escreve em português de Portugal.
-Responde SÓ neste formato, sem mais nada antes ou depois, e sem artefacto:
+const NIVEIS={1:"Fácil",2:"Médio",3:"Difícil"};
+const TIPOS={escolha:"Escolha múltipla",vf:"Verdadeiro ou falso",ligar:"Ligar",escrita:"Resposta escrita"};
+const PEDIDO=`Faz-me um resumo de estudo com quiz e testes. Sou aluno do 8.º ano, em Portugal. Escreve em português de Portugal.
+A matéria está nas fotos que junto (apontamentos do professor, caderno ou manual) ou no resumo/artefacto antigo que colo a seguir. Usa só essa matéria e não inventes.
 
-# Título curto da matéria
-Disciplina: (nome da disciplina)
-## Resumo
-(resumo claro e completo da matéria das fotos; usa tópicos começados por "- " e põe os termos importantes entre **asteriscos**)
-## Perguntas
-P: (pergunta de escolha múltipla)
-A) (opção)
-B) (opção)
-C) (opção)
-D) (opção)
-Certa: (letra)
-P: (pergunta de resposta curta)
-R: (resposta)
+Responde SÓ com um bloco de código JSON, sem artefacto e sem texto antes ou depois, neste formato:
 
-Faz entre 10 e 15 perguntas, a maioria de escolha múltipla, só sobre a matéria das fotos e ao nível de um teste do 8.º ano.`;
+{
+  "titulo": "Título curto da matéria",
+  "disciplina": "Nome da disciplina (ex.: História, Ciências Naturais, Físico-Química)",
+  "tema": "Unidade ou capítulo (opcional)",
+  "materia": "A matéria completa e organizada. Usa '## ' e '### ' para títulos, '- ' para tópicos, **negrito** para termos importantes e datas, e tabelas em markdown (| a | b |) quando fizer sentido, por exemplo para comparar ou para uma cronologia. Usa \\n para mudar de linha.",
+  "perguntas": [
+    {"tipo": "escolha", "nivel": 1, "p": "Pergunta?", "opcoes": ["A", "B", "C", "D"], "certa": 1, "explicacao": "Porque é que a certa é a certa."},
+    {"tipo": "vf", "nivel": 1, "p": "Afirmação.", "certa": false, "explicacao": "Falso: correção."},
+    {"tipo": "ligar", "nivel": 2, "p": "Liga as datas aos acontecimentos.", "pares": [["1415", "Conquista de Ceuta"], ["1434", "Passagem do Cabo Bojador"]]},
+    {"tipo": "escrita", "nivel": 3, "p": "Pergunta de desenvolvimento.", "r": "Resposta modelo completa, como num teste."}
+  ]
+}
 
+Regras:
+- "certa" na escolha é a posição da opção certa, a contar do 0.
+- Níveis: 1 = fácil (datas, nomes, definições), 2 = médio (relacionar, explicar causas e consequências), 3 = difícil (comparar, justificar, perguntas com rasteira, desenvolvimento).
+- Faz pelo menos 10 perguntas de escolha múltipla e 4 de verdadeiro ou falso em cada nível, 1 ou 2 de ligar (4 a 10 pares cada) e 6 a 10 de resposta escrita (níveis 2 e 3).
+- Marca com "final": true umas 15 perguntas, de todos os tipos e níveis, para o teste final.`;
+
+const tipoDe=q=>q.tipo||(q.pares?"ligar":q.opcoes?"escolha":typeof q.certa==="boolean"?"vf":"escrita");
+const nivelDe=q=>[1,2,3].includes(+q.nivel)?+q.nivel:(tipoDe(q)==="escrita"?3:tipoDe(q)==="ligar"?2:1);
+function validaPergunta(q){
+  if(!q||!q.p)return null;
+  const tipo=tipoDe(q),base={tipo,nivel:nivelDe(q),p:String(q.p),final:!!q.final};
+  if(tipo==="escolha"&&Array.isArray(q.opcoes)&&q.opcoes.length>=2&&+q.certa>=0&&+q.certa<q.opcoes.length)return {...base,opcoes:q.opcoes.map(String),certa:+q.certa,explicacao:q.explicacao||""};
+  if(tipo==="vf"&&(typeof q.certa==="boolean"||/^(v|f|verdadeiro|falso|true|false)$/i.test(q.certa)))return {...base,certa:typeof q.certa==="boolean"?q.certa:/^(v|verdadeiro|true)$/i.test(q.certa),explicacao:q.explicacao||""};
+  if(tipo==="ligar"&&Array.isArray(q.pares)&&q.pares.length>=2)return {...base,pares:q.pares.filter(x=>Array.isArray(x)&&x.length>=2).map(x=>[String(x[0]),String(x[1])])};
+  if(tipo==="escrita"&&q.r)return {...base,r:String(q.r)};
+  return null;
+}
 function lerResumo(txt){
+  // 1) JSON (formato novo)
+  const i=txt.indexOf("{"),j=txt.lastIndexOf("}");
+  if(i>=0&&j>i){
+    try{
+      const o=JSON.parse(txt.slice(i,j+1));
+      return {titulo:String(o.titulo||"").trim(),disciplina:String(o.disciplina||"").trim(),tema:String(o.tema||"").trim(),
+        materia:String(o.materia||o.resumo||o.texto||"").trim(),perguntas:(o.perguntas||[]).map(validaPergunta).filter(Boolean)};
+    }catch(e){/* não é JSON, tenta o formato de texto */}
+  }
+  // 2) formato de texto antigo: "# Título", "Disciplina:", "## Resumo", "## Perguntas" com P:/A)/Certa:/R:
   const linhas=txt.replace(/\r/g,"").split("\n").map(l=>l.trim().replace(/^\*\*(P|R|Certa|Disciplina):?\*\*:?/i,"$1:").replace(/^\d+[.)]\s*(?=P:)/,""));
   let titulo="",disciplina="",parte="",resumo=[],perguntas=[],q=null;
-  const fecha=()=>{if(q&&q.p&&(q.r||(q.opcoes.length>=2&&q.certa>=0&&q.certa<q.opcoes.length)))perguntas.push(q.r?{p:q.p,r:q.r}:{p:q.p,opcoes:q.opcoes,certa:q.certa});q=null};
+  const fecha=()=>{if(q){const v=validaPergunta(q.r?{p:q.p,r:q.r}:{p:q.p,opcoes:q.opcoes,certa:q.certa});if(v)perguntas.push(v)}q=null};
   for(const l of linhas){
     let m;
     if(!titulo&&(m=l.match(/^#\s+(.+)/))&&!l.startsWith("##")){titulo=m[1].trim();continue}
@@ -604,92 +651,163 @@ function lerResumo(txt){
     else if((m=l.match(/^R:\s*(.+)/i)))q.r=m[1].trim();
   }
   fecha();
-  return {titulo,disciplina,texto:resumo.join("\n").trim(),perguntas};
+  return {titulo,disciplina,tema:"",materia:resumo.join("\n").trim(),perguntas};
 }
-// Texto do resumo: parágrafos, listas "- " e **negrito**
+// Resumos guardados antes dos níveis: ajusta para o formato novo ao ler
+const normResumo=x=>({...x,materia:x.materia??x.texto??"",perguntas:(x.perguntas||[]).map(validaPergunta).filter(Boolean)});
+
+// Texto da matéria: títulos, parágrafos, listas "- ", tabelas "| a | b |" e **negrito**
 function resumoHTML(t){
   const neg=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
-  let html="",lista=false;
-  t.split("\n").forEach(l=>{
+  let html="",lista=false,tabela=null;
+  const fechaLista=()=>{if(lista){html+="</ul>";lista=false}};
+  const fechaTabela=()=>{if(tabela){html+=`<div class="tbl"><table>${tabela.map((r,k)=>`<tr>${r.map(c=>k===0?`<th>${neg(c)}</th>`:`<td>${neg(c)}</td>`).join("")}</tr>`).join("")}</table></div>`;tabela=null}};
+  String(t||"").split("\n").forEach(raw=>{
+    const l=raw.trim();
+    if(/^\|.*\|$/.test(l)){fechaLista();if(/^\|[\s:|-]+\|$/.test(l))return;(tabela||=[]).push(l.slice(1,-1).split("|").map(c=>c.trim()));return}
+    fechaTabela();
     if(/^[-•*]\s+/.test(l)){if(!lista){html+="<ul>";lista=true}html+=`<li>${neg(l.replace(/^[-•*]\s+/,""))}</li>`;return}
-    if(lista){html+="</ul>";lista=false}
-    if(/^#+\s/.test(l))html+=`<h3>${neg(l.replace(/^#+\s/,""))}</h3>`;else if(l)html+=`<p>${neg(l)}</p>`;
+    fechaLista();
+    const m=l.match(/^(#{1,4})\s+(.*)/);
+    if(m)html+=m[1].length<=2?`<h3 class="r-h2">${neg(m[2])}</h3>`:`<h3>${neg(m[2])}</h3>`;
+    else if(l)html+=`<p>${neg(l)}</p>`;
   });
-  return `<div class="resumo-texto">${html}${lista?"</ul>":""}</div>`;
+  fechaLista();fechaTabela();
+  return `<div class="resumo-texto">${html}</div>`;
 }
 const baralhar=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 
+// Resumos prontos (resumos-prontos.json): mostra o botão se algum ainda não estiver na app
+let prontos=null;
+fetch("resumos-prontos.json",{cache:"no-store"}).then(r=>r.ok?r.json():[]).then(l=>{prontos=l;render()}).catch(()=>{prontos=[]});
+const prontosEmFalta=()=>(prontos||[]).filter(p=>!resumos.some(x=>norm(x.titulo)===norm(p.titulo)&&norm(x.disciplina)===norm(p.disciplina)));
 function renderResumos(){
+  const falta=db?prontosEmFalta():[];
+  $("carregarRes").hidden=!falta.length;
+  $("carregarResTxt").textContent=falta.map(p=>`${p.disciplina}: ${p.titulo} (${p.perguntas.length} perguntas)`).join(" · ");
   const discs=[...new Set(resumos.map(x=>x.disciplina))].sort((a,b)=>a.localeCompare(b,"pt"));
   const f=$("rFiltro").value;$("rFiltro").innerHTML=`<option value="">Todas</option>`+discs.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join("");$("rFiltro").value=discs.includes(f)?f:"";
   const lista=resumos.filter(x=>!$("rFiltro").value||x.disciplina===$("rFiltro").value).sort((a,b)=>String(b.criado).localeCompare(String(a.criado)));
   $("rCount").textContent=`${lista.length} ${lista.length===1?"resumo":"resumos"}`;
   $("resList").innerHTML=lista.length?lista.map(x=>{
-    const res=x.resultados||[],ult=res[res.length-1],nMC=x.perguntas.filter(q=>q.opcoes).length;
+    const res=x.resultados||[],fin=[...res].reverse().find(r=>r.modo==="final"),ult=res[res.length-1];
     const del=confirmar===x.id?`<button class="btn small ghost danger" data-delr="${x.id}">Confirmar</button>`:`<button class="btn small ghost" data-askr="${x.id}">Apagar</button>`;
-    return `<li><div class="top"><span class="tag">${esc(x.disciplina)}</span><span class="date">${x.perguntas.length} perguntas${ult?` · último ${ult.modo} ${Math.round(100*ult.acertos/ult.total)}%`:""}</span></div>
+    const pct=r=>Math.round(100*r.acertos/r.total);
+    return `<li><div class="top"><span class="tag">${esc(x.disciplina)}${x.tema?` · ${esc(x.tema)}`:""}</span><span class="date">${x.perguntas.length} perguntas</span></div>
       <span class="materia">${esc(x.titulo)}</span>
-      <div class="chips"><button class="btn small ghost" data-ler="${x.id}">Ler</button><button class="btn small" data-quiz="${x.id}">Quiz</button>${nMC?`<button class="btn small ghost" data-teste="${x.id}">Teste</button>`:""}${del}</div></li>`}).join("")
+      ${ult?`<span class="notas">Último: ${esc(ult.modo==="final"?"teste final":ult.modo)}${ult.nivel?` ${esc(NIVEIS[ult.nivel]||"tudo").toLowerCase()}`:""} ${pct(ult)}%${fin&&fin!==ult?` · teste final ${pct(fin)}%`:""}</span>`:""}
+      <div class="chips"><button class="btn small ghost" data-ler="${x.id}">Matéria</button><button class="btn small" data-quiz="${x.id}">Quiz</button><button class="btn small ghost" data-teste="${x.id}">Teste</button><button class="btn small ghost" data-final="${x.id}">Teste final</button>${del}</div></li>`}).join("")
     :`<p class="empty">${resumos.length?"Sem resumos nesta disciplina.":"Ainda não há resumos. Abre \"Novo resumo\" e segue os 2 passos."}</p>`;
 }
 
-// Ecrã do quiz/teste/leitura
-function abrirResumo(id,modo){
+// Escolhe as perguntas de cada modo
+function perguntasDe(x,modo,nivel){
+  const P=x.perguntas, doNivel=q=>!nivel||nivelDe(q)===nivel;
+  const ordemTeste=["ligar","vf","escolha","escrita"]; // grupos como num teste a sério
+  const porGrupos=qs=>ordemTeste.flatMap(t=>baralhar(qs.filter(q=>tipoDe(q)===t)));
+  if(modo==="quiz")return baralhar(P.filter(q=>["escolha","vf"].includes(tipoDe(q))&&doNivel(q)));
+  if(modo==="teste")return porGrupos(P.filter(doNivel));
+  // teste final: as marcadas como final; se não houver, uma mistura de todos os níveis e tipos
+  const marcadas=P.filter(q=>q.final);
+  if(marcadas.length>=5)return porGrupos(marcadas);
+  const tira=(f,n)=>baralhar(P.filter(f)).slice(0,n);
+  const curtas=q=>["escolha","vf"].includes(tipoDe(q));
+  return porGrupos([...tira(q=>curtas(q)&&nivelDe(q)===1,4),...tira(q=>curtas(q)&&nivelDe(q)===2,4),...tira(q=>curtas(q)&&nivelDe(q)===3,4),...tira(q=>tipoDe(q)==="ligar",1),...tira(q=>tipoDe(q)==="escrita",3)]);
+}
+
+// Ecrã do resumo: matéria, escolha de nível, perguntas, resultado
+function abrirResumo(id,modo,nivel){
   const x=resumos.find(y=>y.id===id);if(!x)return;
   abrirTab("resumos");
   if(modo==="ler")quiz={x,modo};
+  else if((modo==="quiz"||modo==="teste")&&nivel===undefined)quiz={x,modo,escolher:true};
   else{
-    const qs=modo==="teste"?baralhar(x.perguntas.filter(q=>q.opcoes)):baralhar(x.perguntas).slice(0,10);
-    quiz={x,modo,qs,i:0,acertos:0,resp:null,erros:[],escolhas:[]};
+    const qs=perguntasDe(x,modo,nivel);
+    quiz={x,modo,nivel,qs,i:0,pontos:0,resp:null,erros:[]};
   }
   renderQuiz();$("quiz").scrollIntoView({behavior:"smooth",block:"start"});
 }
+const nomeModo=q=>q.modo==="final"?"Teste final":q.modo==="teste"?"Teste":"Quiz";
 function renderQuiz(){
   const el=$("quiz");
   if(!quiz){el.hidden=true;el.innerHTML="";return}
   el.hidden=false;
   const {x,modo}=quiz, fechar=`<button class="btn small ghost" data-fecharq="1">Fechar</button>`;
-  if(modo==="ler"){el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)}</span>${fechar}</div><h2>${esc(x.titulo)}</h2>${resumoHTML(x.texto)}<div class="chips"><button class="btn" data-quiz="${x.id}">Fazer quiz</button></div>`;return}
-  const {qs,i}=quiz;
-  if(i>=qs.length){
-    const pct=Math.round(100*quiz.acertos/qs.length);
-    const revisao=quiz.erros.map(e=>`<li><span class="materia">${esc(e.q.p)}</span><span class="notas">${e.tua!=null?`Respondeste: ${esc(e.tua)} · `:""}Certa: <b>${esc(e.certa)}</b></span></li>`).join("");
-    el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)} · ${modo}</span>${fechar}</div><h2>${quiz.acertos} em ${qs.length} · ${pct}%</h2>
-      <p class="notas">${pct>=90?"Excelente. Esta matéria está segura.":pct>=70?"Bom. Revê as que falhaste e repete daqui a uns dias.":pct>=50?"Ainda há falhas. Relê o resumo e faz outra vez amanhã.":"Esta matéria ainda não está. Lê o resumo com calma e volta a fazer o quiz."}</p>
-      ${revisao?`<h3>Para rever</h3><ul class="list">${revisao}</ul>`:""}
-      <div class="chips"><button class="btn" data-${modo}="${x.id}">Repetir</button><button class="btn ghost" data-ler="${x.id}">Ler resumo</button></div>`;
+  const cab=extra=>`<div class="top"><span class="tag">${esc(x.disciplina)} · ${esc(x.titulo)}${extra?` · ${extra}`:""}</span>${fechar}</div>`;
+  if(modo==="ler"){el.innerHTML=`${cab("")}<h2>${esc(x.titulo)}</h2>${resumoHTML(x.materia)}<div class="chips"><button class="btn" data-quiz="${x.id}">Quiz</button><button class="btn ghost" data-teste="${x.id}">Teste</button><button class="btn ghost" data-final="${x.id}">Teste final</button></div>`;return}
+  if(quiz.escolher){
+    const conta=n=>perguntasDe(x,modo,n).length;
+    const ops=[1,2,3].map(n=>({n,c:conta(n)})).filter(o=>o.c);
+    el.innerHTML=`${cab(nomeModo(quiz))}<h2>Que nível?</h2>
+      <p class="notas">${modo==="quiz"?"Escolha múltipla e verdadeiro ou falso, com a correção logo a seguir.":"Por grupos, como num teste: ligar, verdadeiro ou falso, escolha múltipla e resposta escrita. Só vês a nota no fim."}</p>
+      <div class="opcoes">${ops.map(o=>`<button class="btn" data-nivel="${o.n}">${NIVEIS[o.n]} · ${o.c} perguntas</button>`).join("")}<button class="btn" data-nivel="0">Tudo · ${conta(0)} perguntas</button></div>`;
     return;
   }
-  const q=qs[i], prog=`<div class="barra"><span style="width:${Math.round(100*i/qs.length)}%"></span></div>`;
-  let corpo="";
-  if(q.opcoes){
-    corpo=`<div class="opcoes">${q.opcoes.map((o,k)=>{
-      let c="";if(quiz.resp!=null){if(modo==="quiz"){if(k===q.certa)c=" certa";else if(k===quiz.resp)c=" errada"}else if(k===quiz.resp)c=" escolhida"}
-      return `<button class="btn${c}" data-op="${k}"${quiz.resp!=null&&modo==="quiz"?" disabled":""}>${String.fromCharCode(65+k)}) ${esc(o)}</button>`}).join("")}</div>`;
-    if(quiz.resp!=null)corpo+=`<div class="chips"><button class="btn" data-seguinte="1">${i+1<qs.length?"Seguinte":"Ver resultado"}</button></div>`;
-  }else{
-    corpo=quiz.resp==null?`<p class="notas">Pensa na resposta (ou di-la em voz alta) e depois vê se acertaste.</p><div class="chips"><button class="btn" data-mostrar="1">Mostrar resposta</button></div>`
-      :`<div class="resposta">${esc(q.r)}</div><div class="chips"><button class="btn" data-auto="1">Acertei</button><button class="btn ghost" data-auto="0">Errei</button></div>`;
+  const {qs,i}=quiz;
+  if(!qs.length){el.innerHTML=`${cab(nomeModo(quiz))}<p class="empty">Não há perguntas deste tipo neste resumo.</p>`;return}
+  if(i>=qs.length){
+    const pct=Math.round(100*quiz.pontos/qs.length), pts=(Math.round(quiz.pontos*10)/10).toLocaleString("pt-PT");
+    const revisao=quiz.erros.map(e=>`<li><span class="materia">${esc(e.q.p)}</span><span class="notas">${e.tua?`Respondeste: ${esc(e.tua)}<br>`:""}Certa: <b>${esc(e.certa)}</b>${e.q.explicacao?`<br>${esc(e.q.explicacao)}`:""}</span></li>`).join("");
+    el.innerHTML=`${cab(nomeModo(quiz)+(quiz.nivel?` · ${NIVEIS[quiz.nivel]}`:""))}<h2>${pts} em ${qs.length} · ${pct}%</h2>
+      <p class="notas">${pct>=90?"Excelente. Esta matéria está segura.":pct>=70?"Bom. Revê as que falhaste e repete daqui a uns dias.":pct>=50?"Ainda há falhas. Relê a matéria e faz outra vez amanhã.":"Esta matéria ainda não está. Lê a matéria com calma e volta a tentar."}</p>
+      ${revisao?`<h3>Para rever</h3><ul class="list">${revisao}</ul>`:""}
+      <div class="chips"><button class="btn" data-repetir="1">Repetir</button><button class="btn ghost" data-ler="${x.id}">Ler a matéria</button></div>`;
+    return;
   }
-  el.innerHTML=`<div class="top"><span class="tag">${esc(x.disciplina)} · ${modo} · ${i+1} de ${qs.length}</span>${fechar}</div>${prog}<h2>${esc(q.p)}</h2>${corpo}`;
+  const q=qs[i],tipo=tipoDe(q),imediato=modo==="quiz",resp=quiz.resp;
+  const grupo=modo!=="quiz"?` · ${TIPOS[tipo]}`:"";
+  const prog=`<div class="barra"><span style="width:${Math.round(100*i/qs.length)}%"></span></div>`;
+  const seguinte=`<div class="chips"><button class="btn" data-seguinte="1">${i+1<qs.length?"Seguinte":"Ver resultado"}</button></div>`;
+  const explica=q.explicacao?`<p class="notas">${esc(q.explicacao)}</p>`:"";
+  let corpo="";
+  if(tipo==="escolha"||tipo==="vf"){
+    const ops=tipo==="vf"?["Verdadeiro","Falso"]:q.opcoes, certa=tipo==="vf"?(q.certa?0:1):q.certa;
+    corpo=`<div class="opcoes${tipo==="vf"?" vf":""}">${ops.map((o,k)=>{
+      let c="";if(resp!=null&&imediato){if(k===certa)c=" certa";else if(k===resp)c=" errada"}
+      return `<button class="btn${c}" data-op="${k}"${resp!=null?" disabled":""}>${tipo==="escolha"?String.fromCharCode(65+k)+") ":""}${esc(o)}</button>`}).join("")}</div>`;
+    if(resp!=null&&imediato)corpo+=`<p class="notas"><b class="${resp===certa?"ok":"bad"}">${resp===certa?"Certo.":"Errado."}</b> ${esc(q.explicacao||"")}</p>`+seguinte;
+  }else if(tipo==="ligar"){
+    if(!quiz.ordem)quiz.ordem=baralhar(q.pares.map(p=>p[1]));
+    corpo=`<div class="ligar">${q.pares.map((p,k)=>{
+      const v=resp?resp[k]:"",c=resp&&imediato?(v===p[1]?" certa":" errada"):"";
+      return `<span>${esc(p[0])}</span><select data-par="${k}" class="${c}"${resp?" disabled":""}><option value="">— escolher —</option>${quiz.ordem.map(o=>`<option${o===v?" selected":""}>${esc(o)}</option>`).join("")}</select>`}).join("")}</div>`;
+    corpo+=resp?(imediato?`<p class="notas">${q.pares.map(p=>`${esc(p[0])} → ${esc(p[1])}`).join(" · ")}</p>`:"")+seguinte:`<div class="chips"><button class="btn" data-ligar="1">${imediato?"Corrigir":"Confirmar"}</button></div>`;
+  }else{
+    corpo=`<textarea id="qEscrita" rows="5" placeholder="Escreve aqui a tua resposta, como no teste"${resp!=null?" disabled":""}>${esc(quiz.texto||"")}</textarea>`;
+    corpo+=resp==null?`<div class="chips"><button class="btn" data-mostrar="1">Ver resposta</button></div>`
+      :`<div class="resposta"><h3>Resposta modelo</h3>${esc(q.r)}</div><p class="notas">Compara com a tua resposta. Como ficou?</p><div class="chips"><button class="btn" data-auto="1">Certa</button><button class="btn ghost" data-auto="0.5">Meio certa</button><button class="btn ghost" data-auto="0">Errada</button></div>`;
+  }
+  el.innerHTML=`${cab(`${nomeModo(quiz)}${quiz.nivel?` · ${NIVEIS[quiz.nivel]}`:""}${grupo}`)}${prog}<p class="count">${i+1} de ${qs.length} · ${NIVEIS[nivelDe(q)]}</p><h2>${esc(q.p)}</h2>${corpo}`;
 }
 async function acabarQuiz(){
-  const {x,modo,qs,acertos}=quiz;
-  try{await db.doc("resumos/"+x.id).update({resultados:[...(x.resultados||[]),{data:hojeISO(),modo,acertos,total:qs.length}]})}catch(e){}
+  const {x,modo,qs,pontos,nivel}=quiz;
+  try{await db.doc("resumos/"+x.id).update({resultados:[...(x.resultados||[]),{data:hojeISO(),modo,nivel:nivel||0,acertos:Math.round(pontos*10)/10,total:qs.length}]})}catch(e){}
 }
+async function avancar(){quiz.i++;quiz.resp=null;quiz.ordem=null;quiz.texto="";if(quiz.i>=quiz.qs.length)await acabarQuiz();renderQuiz()}
 async function quizClique(t){
   if(!quiz)return false;
-  const q=quiz.qs&&quiz.qs[quiz.i];
   if(t.dataset.fecharq){quiz=null;renderQuiz();return true}
-  if(t.dataset.op!=null&&q&&quiz.resp==null){
-    const k=+t.dataset.op;quiz.resp=k;
-    if(k===q.certa)quiz.acertos++;else quiz.erros.push({q,tua:q.opcoes[k],certa:q.opcoes[q.certa]});
-    if(quiz.modo==="teste"){quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz()}
-    renderQuiz();return true;
+  if(t.dataset.nivel!=null&&quiz.escolher){abrirResumo(quiz.x.id,quiz.modo,+t.dataset.nivel||0);return true}
+  if(t.dataset.repetir){abrirResumo(quiz.x.id,quiz.modo,quiz.modo==="final"?0:quiz.nivel);return true}
+  const q=quiz.qs&&quiz.qs[quiz.i];if(!q)return false;
+  const tipo=tipoDe(q),imediato=quiz.modo==="quiz";
+  if(t.dataset.op!=null&&quiz.resp==null){
+    const k=+t.dataset.op,certa=tipo==="vf"?(q.certa?0:1):q.certa,ops=tipo==="vf"?["Verdadeiro","Falso"]:q.opcoes;
+    if(k===certa)quiz.pontos++;else quiz.erros.push({q,tua:ops[k],certa:ops[certa]});
+    if(imediato){quiz.resp=k;renderQuiz()}else await avancar();
+    return true;
   }
-  if(t.dataset.seguinte){quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz();renderQuiz();return true}
-  if(t.dataset.mostrar){quiz.resp=1;renderQuiz();return true}
-  if(t.dataset.auto!=null&&q){if(t.dataset.auto==="1")quiz.acertos++;else quiz.erros.push({q,tua:null,certa:q.r});quiz.i++;quiz.resp=null;if(quiz.i>=quiz.qs.length)await acabarQuiz();renderQuiz();return true}
+  if(t.dataset.ligar){
+    const v=[...$("quiz").querySelectorAll("select[data-par]")].map(s=>s.value);
+    const certas=q.pares.filter((p,k)=>v[k]===p[1]).length;
+    quiz.pontos+=certas/q.pares.length;
+    if(certas<q.pares.length)quiz.erros.push({q,tua:`${certas} de ${q.pares.length} certas`,certa:q.pares.map(p=>`${p[0]} → ${p[1]}`).join(" · ")});
+    if(imediato){quiz.resp=v;renderQuiz()}else await avancar();
+    return true;
+  }
+  if(t.dataset.seguinte){await avancar();return true}
+  if(t.dataset.mostrar){quiz.texto=($("qEscrita")||{}).value||"";quiz.resp=1;renderQuiz();return true}
+  if(t.dataset.auto!=null){const v=+t.dataset.auto;quiz.pontos+=v;if(v<1)quiz.erros.push({q,tua:quiz.texto||"",certa:q.r});await avancar();return true}
   return false;
 }
 
@@ -747,6 +865,7 @@ document.addEventListener("click",async e=>{
     if(t.dataset.ler){abrirResumo(t.dataset.ler,"ler");return}
     if(t.dataset.quiz){abrirResumo(t.dataset.quiz,"quiz");return}
     if(t.dataset.teste){abrirResumo(t.dataset.teste,"teste");return}
+    if(t.dataset.final){abrirResumo(t.dataset.final,"final",0);return}
     if(t.dataset.askr){confirmar=t.dataset.askr;render();return}
     if(t.dataset.delr){if(quiz&&quiz.x.id===t.dataset.delr){quiz=null;renderQuiz()}await db.doc("resumos/"+t.dataset.delr).delete();confirmar=null;status("Resumo apagado.")}
     if(t.dataset.mes){const [a,m]=calMes.split("-").map(Number),d=new Date(a,m-1+ +t.dataset.mes,1);calMes=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;calSel=null;renderCalendario();return}
@@ -818,10 +937,16 @@ $("btnPedido").addEventListener("click",async()=>{
   try{await navigator.clipboard.writeText(PEDIDO);status("Pedido copiado. Cola-o no Claude e junta as fotos.")}
   catch(e){$("rTexto").value=PEDIDO;$("rTexto").select();status("Não consegui copiar sozinho: o pedido está na caixa, copia-o daí.",true)}
 });
+$("btnRes").addEventListener("click",async e=>{
+  if(!db)return;e.target.disabled=true;
+  try{const falta=prontosEmFalta();for(const p of falta)await db.collection("resumos").add({...p,resultados:[],criado:new Date().toISOString()});status(`Resumos carregados: ${falta.length}.`)}
+  catch(err){status("Não consegui carregar os resumos.",true)}
+  e.target.disabled=false;
+});
 $("btnResumo").addEventListener("click",async e=>{
   if(!db)return;
   const r=lerResumo($("rTexto").value);
-  if(!r.titulo||!r.perguntas.length){status(!r.titulo?"Não encontrei o título (linha que começa com #). Copiaste a resposta toda?":"Não encontrei perguntas. Confirma que há uma parte \"## Perguntas\" com linhas \"P:\".",true);return}
+  if(!r.titulo||!r.perguntas.length){status(!r.titulo?"Não encontrei o título. Copiaste a resposta toda do Claude, desde o { até ao }?":"Não encontrei perguntas válidas. Pede ao Claude para repetir no formato do pedido.",true);return}
   e.target.disabled=true;
   try{
     await db.collection("resumos").add({...r,disciplina:r.disciplina||"Sem disciplina",resultados:[],criado:new Date().toISOString()});
@@ -892,7 +1017,7 @@ abrirBD({pedirLogin}).then(base=>{
   db.collection("horario").onSnapshot(s=>{horario=s.docs.map(d=>({id:d.id,...d.data()}));render();
     // o "Ad" do horário é Arte Digital: corrige as aulas carregadas antes de sabermos o nome
     horario.filter(a=>a.disciplina==="Ad").forEach(a=>db.doc("horario/"+a.id).update({disciplina:"Arte Digital"}))});
-  db.collection("resumos").onSnapshot(s=>{resumos=s.docs.map(d=>({id:d.id,...d.data()}));if(quiz){const x=resumos.find(y=>y.id===quiz.x.id);if(x)quiz.x=x}render()});
+  db.collection("resumos").onSnapshot(s=>{resumos=s.docs.map(d=>normResumo({id:d.id,...d.data()}));if(quiz){const x=resumos.find(y=>y.id===quiz.x.id);if(x)quiz.x=x}render()});
   db.collection("faltas").onSnapshot(s=>{faltas=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   db.collection("sessoes").onSnapshot(s=>{sessoes=s.docs.map(d=>({id:d.id,...d.data()}));render()});
   status("");

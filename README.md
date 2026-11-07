@@ -21,13 +21,19 @@ Atenção: a "Descarregar cópia" não leva as fotos, só o texto.
 ## Faltas
 Em Hoje > "Faltei a aulas" escolhes o dia e as aulas (vêm do horário). Cada falta fica em "Para compensar" com dois passos: "Já tenho a matéria" e "Compensei". Este último abre o registo, para a matéria entrar nas revisões. As faltas de disciplinas com teste perto aparecem primeiro.
 
-## Resumos, quiz e teste
+## Resumos, quiz e testes
 Os resumos fazem-se no Claude e guardam-se na app:
 1. Separador Resumos > "Novo resumo" > "Copiar pedido para o Claude".
-2. Cola o pedido numa conversa nova no Claude e junta as fotos do caderno.
-3. Copia a resposta toda e cola-a na app. Carrega em "Guardar resumo".
+2. Cola o pedido numa conversa nova no Claude e junta as fotos dos apontamentos (ou cola um resumo antigo para o converter).
+3. Copia a resposta toda (o bloco JSON) e cola-a na app. Carrega em "Guardar resumo".
 
-Depois, em cada resumo: "Ler", "Quiz" (até 10 perguntas, vês logo se acertaste) e "Teste" (todas as de escolha múltipla, nota só no fim). Os resultados ficam guardados. Se houver um resumo da disciplina, o "Estudar para" mostra um botão de quiz.
+Cada resumo tem:
+- **Matéria**: com títulos, tópicos, termos a amarelo e tabelas.
+- **Quiz**: escolha múltipla e verdadeiro/falso, com nível à escolha (Fácil, Médio, Difícil ou Tudo) e a correção e explicação logo a seguir.
+- **Teste**: por grupos (ligar, verdadeiro/falso, escolha múltipla, resposta escrita), com nível à escolha e nota só no fim. Na resposta escrita escreves, vês a resposta modelo e dizes se ficou certa, meio certa ou errada.
+- **Teste final**: as perguntas marcadas como finais (ou uma mistura de todos os níveis e tipos), com nota em %.
+
+Os resultados ficam guardados. O `resumos-prontos.json` tem resumos já convertidos, que se carregam no separador Resumos.
 
 ## Calendário e notas
 No separador Testes há um calendário do mês (testes, dias de estudo, faltas e dias em que estudaste; toca num dia para ver o que tem) e o painel "Notas e estudo": escreve a nota de cada teste (Editar) e vês quantas vezes estudaste essa disciplina nas duas semanas antes.
