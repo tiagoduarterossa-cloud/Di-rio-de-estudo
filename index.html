@@ -73,6 +73,18 @@ ul.list li:first-child{border-top:0}
 .status.err{color:var(--danger)}
 .filter{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
 .filter label{flex:1;min-width:160px}
+/* Grelha do horário: dias em colunas, horas em linhas */
+.grelha{display:grid;grid-template-columns:52px repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--line);gap:1px}
+.grelha>div{background:var(--surface);display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 4px;min-height:48px}
+.grelha .cab{background:var(--bg);font:600 .9rem var(--f-body);color:var(--muted);min-height:40px}
+.grelha .cab.hoje{color:var(--mark-ink);background:var(--mark)}
+.grelha .hora{background:var(--bg);font:500 .72rem/1.35 var(--f-mono);color:var(--muted);flex-direction:column}
+.grelha .aula{font:600 1rem var(--f-body);color:var(--ink);overflow-wrap:anywhere}
+.grelha .pausa{background:var(--bg);min-height:28px;color:var(--line);font-size:.8rem}
+.grelha .vazio{color:var(--line)}
+details.panel summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.panel summary::after{content:"▾";color:var(--muted)}
+details[open].panel summary::after{content:"▴"}
 .count{font:500 .85rem var(--f-mono);color:var(--muted)}
 </style>
 </head>
@@ -152,6 +164,7 @@ ul.list li:first-child{border-top:0}
       <p class="notas">Carrega as aulas da semana de uma vez. Depois podes editar ou apagar qualquer uma.</p>
       <button class="btn" type="button" id="btnHor">Carregar o meu horário</button>
     </div>
+    <div class="panel"><h2>O meu horário</h2><div id="horGrid"></div></div>
     <form class="panel" id="formAula">
       <h2>Adicionar aula</h2>
       <div class="row">
@@ -165,7 +178,7 @@ ul.list li:first-child{border-top:0}
       <label for="aSala">Sala ou professor (opcional)<input id="aSala"></label>
       <div class="chips"><button class="btn" type="submit">Adicionar</button><button class="btn ghost" type="button" data-cancel="formAula" hidden>Cancelar</button></div>
     </form>
-    <div class="panel"><h2>O meu horário</h2><div id="horList" class="dias"></div></div>
+    <details class="panel"><summary><h2>Editar aulas</h2></summary><div id="horList" class="dias"></div></details>
   </section>
 
   <section id="manuais" hidden>
@@ -296,6 +309,43 @@ function render(){
   document.querySelectorAll("form:not(#formLogin) button[type=submit]").forEach(b=>b.disabled=!db||!podeEscrever);
 }
 
+// Nome curto para a grelha: "Educação Física" -> "EF", "Matemática" -> "Mat"
+const ABREV={"Português":"Port","Físico-Química":"CFQ"};
+const abrev=n=>{if(ABREV[n])return ABREV[n];const p=String(n).split(/[\s-]+/).filter(w=>w.length>2);return p.length>1?p.map(w=>w[0].toUpperCase()).join(""):(n.length<=4?n:n.slice(0,3))};
+function renderGrelha(){
+  if(!horario.length){$("horGrid").innerHTML=`<p class="empty">Ainda não há aulas.</p>`;return}
+  // as linhas são os intervalos entre todas as horas de início e fim
+  const t=[...new Set(horario.flatMap(a=>[a.inicio,a.fim]))].sort();
+  const min=h=>{const[a,b]=h.split(":");return a*60+ +b};
+  const hhmm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+  const temAula=l=>horario.some(a=>a.inicio<=l.ini&&a.fim>=l.fim);
+  // blocos de 100 minutos aparecem como dois tempos de 50, como no horário da escola
+  const linhas=[];
+  t.slice(0,-1).forEach((ini,i)=>{const fim=t[i+1],d=min(fim)-min(ini);
+    if(temAula({ini,fim})&&d>50&&d%50===0)for(let m=min(ini);m<min(fim);m+=50)linhas.push({ini:hhmm(m),fim:hhmm(m+50)});
+    else linhas.push({ini,fim});});
+  const hojeDia=new Date().getDay();
+  let html=`<div class="cab" style="grid-row:1;grid-column:1"></div>`+["Seg","Ter","Qua","Qui","Sex"].map((d,i)=>`<div class="cab${hojeDia===i+1?" hoje":""}" style="grid-row:1;grid-column:${i+2}">${d}</div>`).join("");
+  const rowDe={};
+  let row=2;
+  linhas.forEach(l=>{
+    const aula=temAula(l);
+    if(!aula&&min(l.fim)-min(l.ini)<30)return; // intervalos curtos não aparecem
+    rowDe[l.ini]=row;
+    if(!aula){html+=`<div class="pausa" style="grid-row:${row};grid-column:1/7"></div>`}
+    else{
+      html+=`<div class="hora" style="grid-row:${row};grid-column:1"><span>${l.ini}</span><span>${l.fim}</span></div>`;
+      for(let d=1;d<=5;d++)if(!horario.some(a=>+a.dia===d&&a.inicio<=l.ini&&a.fim>=l.fim))html+=`<div class="vazio" style="grid-row:${row};grid-column:${d+1}">·</div>`;
+    }
+    row++;
+  });
+  const fimRow=h=>{const i=linhas.findIndex(l=>l.ini>=h);let r=row;for(let j=i;j>=0&&j<linhas.length;j++)if(rowDe[linhas[j].ini]){r=rowDe[linhas[j].ini];break}return i<0?row:r};
+  horario.filter(a=>+a.dia>=1&&+a.dia<=5).forEach(a=>{
+    html+=`<div class="aula" title="${esc(a.disciplina)}${a.sala?" · "+esc(a.sala):""}" style="grid-row:${rowDe[a.inicio]}/${fimRow(a.fim)};grid-column:${+a.dia+1}">${esc(abrev(a.disciplina))}</div>`;
+  });
+  $("horGrid").innerHTML=`<div class="grelha">${html}</div>`;
+}
+
 function renderAgenda(){
   const hoje=hojeISO();
   const fut=testes.filter(t=>t.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
@@ -318,6 +368,7 @@ function renderAgenda(){
     :`<p class="empty">Ainda não há aulas. Adiciona-as acima, dia a dia. A hora de início passa sozinha para o fim da aula anterior.</p>`;
 
   $("carregarHor").hidden=!db||horario.length>0;
+  renderGrelha();
   const am=new Date(hoje+"T12:00:00");am.setDate(am.getDate()+1);const wd=am.getDay();
   const aulasAm=horario.filter(a=>+a.dia===wd).sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
   $("amanha").textContent=aulasAm.length?`Amanhã (${DIAS[wd]}): ${[...new Set(aulasAm.map(a=>a.disciplina))].join(", ")}.`:(horario.length?`Amanhã (${DIAS[wd]}) não tens aulas.`:"");
